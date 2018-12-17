@@ -185,7 +185,7 @@ export interface IAbstractTreeOptions<T, TFilterData = void> extends IListOption
 
 export abstract class AbstractTree<T, TFilterData, TRef> implements IDisposable {
 
-	private view: List<ITreeNode<T, TFilterData>>;
+	protected view: List<ITreeNode<T, TFilterData>>;
 	protected model: ITreeModel<T, TFilterData, TRef>;
 	protected disposables: IDisposable[] = [];
 
