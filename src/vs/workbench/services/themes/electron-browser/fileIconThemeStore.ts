@@ -42,16 +42,21 @@ const iconThemeExtPoint = ExtensionsRegistry.registerExtensionPoint<IThemeExtens
 	}
 });
 
+export interface FileIconThemeChangeEvent {
+	themes: FileIconThemeData[];
+	added: FileIconThemeData[];
+}
+
 export class FileIconThemeStore {
 
 	private knownIconThemes: FileIconThemeData[];
-	private readonly onDidChangeEmitter: Emitter<FileIconThemeData[]>;
+	private readonly onDidChangeEmitter: Emitter<FileIconThemeChangeEvent>;
 
-	public get onDidChange(): Event<FileIconThemeData[]> { return this.onDidChangeEmitter.event; }
+	public get onDidChange(): Event<FileIconThemeChangeEvent> { return this.onDidChangeEmitter.event; }
 
 	constructor(@IExtensionService private readonly extensionService: IExtensionService) {
 		this.knownIconThemes = [];
-		this.onDidChangeEmitter = new Emitter<FileIconThemeData[]>();
+		this.onDidChangeEmitter = new Emitter<FileIconThemeChangeEvent>();
 		this.initialize();
 	}
 
@@ -67,7 +72,7 @@ export class FileIconThemeStore {
 				};
 				this.onIconThemes(ext.description.extensionLocation, extensionData, ext.value, ext.collector);
 			}
-			this.onDidChangeEmitter.fire(this.knownIconThemes);
+			this.onDidChangeEmitter.fire({ themes: this.knownIconThemes });
 		});
 	}
 
