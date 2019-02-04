@@ -173,8 +173,6 @@ export class InstallAction extends ExtensionAction {
 	}
 
 	run(): Promise<any> {
-		this.extensionsWorkbenchService.open(this.extension);
-
 		alert(localize('installExtensionStart', "Installing extension {0} started. An editor is now open with more details on this extension", this.extension.displayName));
 
 		return this.install(this.extension);
@@ -1042,7 +1040,6 @@ export class ReloadAction extends ExtensionAction {
 		if (isUninstalled && runningExtension) {
 			// Requires reload to deactivate the extension
 			this.enabled = true;
-			this.label = localize('reloadRequired', "Reload Required");
 			this.tooltip = localize('postUninstallTooltip', "Please reload Visual Studio Code to complete the uninstallation of this extension.");
 			alert(localize('uninstallExtensionComplete', "Please reload Visual Studio Code to complete the uninstallation of the extension {0}.", this.extension.displayName));
 			return;

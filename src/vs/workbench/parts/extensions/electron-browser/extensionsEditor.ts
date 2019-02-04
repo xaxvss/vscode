@@ -119,7 +119,7 @@ export class TOCEntryRenderer implements ITreeRenderer<TOCEntry, void, TOCEntryT
 		dom.addClass(templateData.badge.element, 'hide');
 		switch (element) {
 			case 'INSTALLED':
-				templateData.tocLabel.textContent = 'Installed';
+				templateData.tocLabel.textContent = 'Local';
 				return;
 			case 'INSTALLED/RUNNING':
 				templateData.tocLabel.textContent = 'Enabled';
@@ -194,7 +194,10 @@ export type NavigationEntry =
 	'SYSTEM' |
 	'SYSTEM/PROGRAMMING_LANGUAGES' |
 	'SYSTEM/FEATURES' |
-	'SYSTEM/THEMES'
+	'SYSTEM/THEMES' |
+
+	'WORKSPACE' |
+	'OTHERS'
 	;
 
 export class NavigationTreeVirtualDelegate implements IListVirtualDelegate<NavigationEntry> {
@@ -244,6 +247,13 @@ export class NavigationEntryRenderer implements ITreeRenderer<NavigationEntry, v
 				return;
 			case 'SYSTEM/THEMES':
 				templateData.label.textContent = 'Themes';
+				return;
+
+			case 'WORKSPACE':
+				templateData.label.textContent = 'Workspace';
+				return;
+			case 'OTHERS':
+				templateData.label.textContent = 'Others';
 				return;
 		}
 	}
@@ -515,6 +525,9 @@ export class ExtensionsEditor extends BaseEditor {
 		);
 		this.tocTree.setChildren(null, [
 			{
+				element: 'RECOMMENDATIONS',
+			},
+			{
 				element: 'MARKETPLACE',
 				children: [
 					{ element: 'MARKETPLACE/AZURE' },
@@ -528,13 +541,6 @@ export class ExtensionsEditor extends BaseEditor {
 					{ element: 'MARKETPLACE/SCM_PROVIDERS' },
 					{ element: 'MARKETPLACE/SNIPPETS' },
 					{ element: 'MARKETPLACE/THEMES' }
-				]
-			},
-			{
-				element: 'RECOMMENDATIONS',
-				children: [
-					{ element: 'RECOMMENDATIONS/WORKSPACE' },
-					{ element: 'RECOMMENDATIONS/OTHER' }
 				]
 			},
 			{
@@ -629,7 +635,7 @@ export class ExtensionsEditor extends BaseEditor {
 	private async onDidChangeTOCEntrySelection(entry: TOCEntry): Promise<void> {
 		switch (entry) {
 			case 'INSTALLED':
-				this.searchWidget.setValue('@installed ');
+				this.searchWidget.setValue('@local ');
 				break;
 			case 'INSTALLED/RUNNING':
 				this.searchWidget.setValue('@enabled ');
@@ -696,6 +702,32 @@ export class ExtensionsEditor extends BaseEditor {
 			case 'INSTALLED/DISABLED':
 				dom.removeClass(this.navigationTreeContainer, 'hide');
 				this.navigationTree.setSelection(['USER']);
+				this.navigationTree.setChildren(null, [
+					{
+						element: 'USER',
+					},
+					{
+						element: 'SYSTEM',
+						children: [
+							{ element: 'SYSTEM/PROGRAMMING_LANGUAGES' },
+							{ element: 'SYSTEM/THEMES' },
+							{ element: 'SYSTEM/FEATURES' }
+						]
+					}
+				]);
+				break;
+
+			case 'RECOMMENDATIONS':
+				dom.removeClass(this.navigationTreeContainer, 'hide');
+				this.navigationTree.setSelection(['WORKSPACE']);
+				this.navigationTree.setChildren(null, [
+					{
+						element: 'WORKSPACE',
+					},
+					{
+						element: 'OTHERS',
+					}
+				]);
 				break;
 
 			default:
@@ -726,8 +758,8 @@ export class ExtensionsEditor extends BaseEditor {
 
 	private async showResults(): Promise<void> {
 		let value = this.searchWidget.getValue().trim();
-		if (/@installed/i.test(value)) {
-			return this.showInstalled(value.replace(/@installed/g, '').trim().toLowerCase());
+		if (/@local/i.test(value)) {
+			return this.showInstalled(value.replace(/@local/g, '').trim().toLowerCase());
 		}
 		if (/@enabled/i.test(value)) {
 			return this.showRunning(value.replace(/@enabled/g, '').trim().toLowerCase());
