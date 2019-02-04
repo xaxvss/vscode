@@ -1015,7 +1015,6 @@ export class ReloadAction extends ExtensionAction {
 					if (!(this.extension.local && this.extensionService.canAddExtension(toExtensionDescription(this.extension.local)))) {
 						// Requires reload to run the updated extension
 						this.enabled = true;
-						this.label = localize('reloadRequired', "Reload Required");
 						this.tooltip = localize('postUpdateTooltip', "Please reload Visual Studio Code to complete the updating of this extension.");
 					}
 					return;
@@ -1023,7 +1022,6 @@ export class ReloadAction extends ExtensionAction {
 				if (isDisabled) {
 					// Requires reload to disable the extension
 					this.enabled = true;
-					this.label = localize('reloadRequired', "Reload Required");
 					this.tooltip = localize('postDisableTooltip', "Please reload Visual Studio Code to complete the disabling of this extension.");
 					return;
 				}
@@ -1031,10 +1029,8 @@ export class ReloadAction extends ExtensionAction {
 				if (!isDisabled && !(this.extension.local && this.extensionService.canAddExtension(toExtensionDescription(this.extension.local)))) {
 					this.enabled = true;
 					if (isEnabled) {
-						this.label = localize('reloadRequired', "Reload Required");
 						this.tooltip = localize('postEnableTooltip', "Please reload Visual Studio Code to complete the enabling of this extension.");
 					} else {
-						this.label = localize('reloadRequired', "Reload Required");
 						this.tooltip = localize('postInstallTooltip', "Please reload Visual Studio Code to complete the installation of this extension.");
 						alert(localize('installExtensionComplete', "Installing extension {0} is completed. Please reload Visual Studio Code to enable it.", this.extension.displayName));
 					}

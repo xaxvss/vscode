@@ -46,6 +46,8 @@ import { URI } from 'vs/base/common/uri';
 import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 import { ExtensionActivationProgress } from 'vs/workbench/parts/extensions/electron-browser/extensionsActivationProgress';
 import { ExtensionsAutoProfiler } from 'vs/workbench/parts/extensions/electron-browser/extensionsAutoProfiler';
+import { ExtensionsEditor, ExtensionsEditorInput } from 'vs/workbench/parts/extensions/electron-browser/extensionsEditor';
+import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 
 // Singletons
 registerSingleton(IExtensionsWorkbenchService, ExtensionsWorkbenchService);
@@ -96,6 +98,27 @@ const editorDescriptor = new EditorDescriptor(
 
 Registry.as<IEditorRegistry>(EditorExtensions.Editors)
 	.registerEditor(editorDescriptor, [new SyncDescriptor(ExtensionsInput)]);
+
+// Editor
+const extensionsEditorDescriptor = new EditorDescriptor(
+	ExtensionsEditor,
+	ExtensionsEditor.ID,
+	localize('extensions', "Extensions")
+);
+
+Registry.as<IEditorRegistry>(EditorExtensions.Editors)
+	.registerEditor(extensionsEditorDescriptor, [new SyncDescriptor(ExtensionsEditorInput)]);
+
+class ExtensionsEditorInputFactory implements IEditorInputFactory {
+	serialize(editorInput: EditorInput): string {
+		return '';
+	}
+	deserialize(instantiationService: IInstantiationService, serializedEditorInput: string): EditorInput {
+		return new ExtensionsEditorInput();
+	}
+}
+
+Registry.as<IEditorInputFactoryRegistry>(EditorInputExtensions.EditorInputFactories).registerEditorInputFactory(ExtensionsEditorInput.ID, ExtensionsEditorInputFactory);
 
 // Running Extensions Editor
 
@@ -283,6 +306,19 @@ CommandsRegistry.registerCommand(StopExtensionHostProfileAction.ID, (accessor: S
 CommandsRegistry.registerCommand(SaveExtensionHostProfileAction.ID, (accessor: ServicesAccessor) => {
 	const instantationService = accessor.get(IInstantiationService);
 	instantationService.createInstance(SaveExtensionHostProfileAction, SaveExtensionHostProfileAction.ID, SaveExtensionHostProfileAction.LABEL).run();
+});
+
+CommandsRegistry.registerCommand('workbench.actions.showExtensions', (accessor: ServicesAccessor) => {
+	const editorService = accessor.get(IEditorService);
+	editorService.openEditor(new ExtensionsEditorInput(), { pinned: true });
+});
+
+MenuRegistry.appendMenuItem(MenuId.CommandPalette, {
+	command: {
+		id: 'workbench.actions.showExtensions',
+		title: localize('open extensions editor', "Show Extensions (2)"),
+		category: localize('view', "View"),
+	},
 });
 
 // File menu registration

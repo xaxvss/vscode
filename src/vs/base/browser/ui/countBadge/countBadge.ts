@@ -28,7 +28,7 @@ const defaultOpts = {
 
 export class CountBadge {
 
-	private element: HTMLElement;
+	readonly element: HTMLElement;
 	private count: number;
 	private countFormat: string;
 	private titleFormat: string;

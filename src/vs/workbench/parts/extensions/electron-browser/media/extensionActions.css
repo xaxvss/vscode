@@ -72,11 +72,11 @@
 	opacity: 0.9;
 }
 
-.extensions-viewlet>.extensions .extension>.details>.footer>.monaco-action-bar .action-item .action-label.extension-action.manage.hide {
+.monaco-action-bar .action-item .action-label.extension-action.manage.hide {
 	display: none;
 }
 
-.extensions-viewlet>.extensions .extension>.details>.footer>.monaco-action-bar .action-item .action-label.extension-action.manage {
+.monaco-action-bar .action-item .action-label.extension-action.manage {
 	height: 18px;
 	width: 10px;
 	border: none;
@@ -85,8 +85,8 @@
 	margin-top: 0.15em
 }
 
-.hc-black .extensions-viewlet>.extensions .extension>.details>.footer>.monaco-action-bar .action-item .action-label.extension-action.manage,
-.vs-dark .extensions-viewlet>.extensions .extension>.details>.footer>.monaco-action-bar .action-item .action-label.extension-action.manage {
+.hc-black .monaco-action-bar .action-item .action-label.extension-action.manage,
+.vs-dark .monaco-action-bar .action-item .action-label.extension-action.manage {
 	background: url('manage-inverse.svg') center center no-repeat;
 }
 

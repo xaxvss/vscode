@@ -1,0 +1,220 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.extensions-editor {
+	height: 100%;
+	display: flex;
+	padding: 0 100px;
+}
+
+.extensions-editor > .left-container {
+	margin: 0px 10px;
+	flex: 0.1;
+	min-width: 250px;
+}
+
+.extensions-editor > .extensions-container {
+	flex: 0.8;
+}
+
+.extensions-editor > .right-container {
+	margin: 0px 10px;
+	flex: 0.1;
+	min-width: 200px;
+}
+
+.extensions-editor .hide {
+	display: none;
+}
+
+.extensions-editor > .extensions-container > .search-container > .settings-header-widget {
+	padding: 10px 10px 10px 0;
+}
+
+/** Styling Table of Contents */
+
+.extensions-editor .table-of-contents-container .monaco-list-row .table-of-contents-entry {
+	display: flex;
+}
+
+.extensions-editor .table-of-contents-container .monaco-list-row .table-of-contents-entry > .label {
+	font-weight: 600;
+	text-transform: uppercase;
+	margin-right: 10px;
+}
+
+/** Styling Navigation */
+
+.extensions-editor .navigation-tree-container .monaco-list-row .navigation-entry {
+	display: flex;
+}
+
+.extensions-editor .navigation-tree-container .monaco-list-row .navigation-entry > .label {
+	margin-right: 10px;
+}
+
+/** Styling Extensions List */
+
+.extensions-editor > .extensions-container > .extensions-list .extension {
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	display: flex;
+	font-size: 14px;
+	padding: 10px 10px 10px 0;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension.loading {
+	background: url('loading.svg') center center no-repeat;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .monaco-list-row > .extension > .icon-container {
+	position: relative;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .icon-container > .icon {
+	height: 100px;
+	width: 100px;
+	object-fit: contain;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .monaco-list-row > .extension > .icon-container > .extension-remote-badge {
+	position: absolute;
+	right: 0px;
+	top: 94px;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension.loading > .icon-container {
+	display: none;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details {
+	padding-left: 20px;
+	overflow: hidden;
+	user-select: text;
+	flex: 1;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .title {
+	display: flex;
+	align-items: center;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .title > .name {
+	flex: 0;
+	font-size: 20px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .title > .identifier {
+	margin-left: 10px;
+	opacity: 0.6;
+	background: rgba(173, 173, 173, 0.31);
+	padding: 0px 4px;
+	border-radius: 4px;
+	user-select: text;
+	white-space: nowrap;
+}
+
+.vs .extensions-editor > .extensions-container > .extensions-list .extension > .details > .title > .preview {
+	color: white;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .title > .preview {
+	background: rgb(214, 63, 38);
+	font-size: 10px;
+	font-style: italic;
+	margin-left: 10px;
+	padding: 0px 4px;
+	border-radius: 4px;
+	user-select: none;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .title > .version {
+	opacity: 0.85;
+	font-size: 80%;
+	padding-left: 6px;
+	min-width: fit-content;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .subtitle {
+	padding-top: 6px;
+	white-space: nowrap;
+	height: 20px;
+	line-height: 20px;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .subtitle > .publisher {
+	font-size: 14px;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .subtitle > .built-in {
+	font-style: italic;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .subtitle > .install > .count {
+	margin-left: 6px;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .subtitle > span:not(:first-child):not(:empty),
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .subtitle > a:not(:first-child):not(:empty) {
+	border-left: 1px solid rgba(128, 128, 128, 0.7);
+	margin-left: 8px;
+	padding-left: 8px;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .description {
+	margin-top: 6px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .actions-container {
+	margin-top: 10px;
+	display: flex;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .actions-container > .actions > .monaco-action-bar {
+	text-align: initial;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .actions-container > .actions > .monaco-action-bar > .actions-container {
+	justify-content: flex-start;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .actions-container > .actions > .monaco-action-bar > .actions-container > .action-item > .action-label {
+	font-weight: 600;
+	margin: 4px 8px 4px 0px;
+	padding: 0px 6px 1px 6px;
+	font-size: 14px;
+}
+
+.extensions-editor > .extensions-container > .extensions-list .extension > .details > .actions-container > .reload-text {
+	font-style: italic;
+	font-size: 13px;
+	padding-top: 5px;
+}
+
+.vs .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .bookmark,
+.vs-dark  .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .bookmark,
+.vs .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .icon-container > .icon,
+.vs-dark .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .icon-container > .icon,
+.vs .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .details > .header-container,
+.vs-dark .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .details > .header-container,
+.vs .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .details > .description,
+.vs-dark .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .details > .description,
+.vs .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .details > .footer > .author,
+.vs-dark .extensions-editor > .extensions-container > .extensions-list .monaco-list-row.disabled > .extension > .details > .footer > .author {
+	opacity: 0.5;
+}
+
+.extensions-viewlet > .extensions .extension .ellipsis {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
