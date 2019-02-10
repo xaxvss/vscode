@@ -29,6 +29,73 @@ export interface KeybindingsSearchOptions extends SearchOptions {
 	quoteRecordedKeys?: boolean;
 }
 
+export class RecordingWidget extends Widget {
+
+	private readonly _recordingNode: HTMLElement;
+	private _firstPart: ResolvedKeybinding;
+	private _chordPart: ResolvedKeybinding;
+
+	private _onDidChange = this._register(new Emitter<string>());
+	onDidChange: Event<string> = this._onDidChange.event;
+
+	constructor(parent: HTMLElement,
+		@IKeybindingService private readonly keybindingService: IKeybindingService,
+		@IInstantiationService instantiationService: IInstantiationService,
+		@IThemeService themeService: IThemeService
+	) {
+		super();
+
+		this._recordingNode = dom.append(parent, dom.$('.recording-widget', { 'tabindex': '0' }));
+		this.clear();
+		this._register(dom.addDisposableListener(this._recordingNode, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => this._onKeyDown(new StandardKeyboardEvent(e))));
+		this._recordingNode.focus();
+	}
+
+	getUserSettingsLabel(): string {
+		let value = '';
+		if (this._firstPart) {
+			value = this._firstPart.getUserSettingsLabel();
+		}
+		if (this._chordPart) {
+			value = value + ' ' + this._chordPart.getUserSettingsLabel();
+		}
+		return value;
+	}
+
+	clear() {
+		this._firstPart = null;
+		this._chordPart = null;
+		dom.clearNode(this._recordingNode);
+		this._recordingNode.innerText = nls.localize('recording', "Recording");
+	}
+
+	private _onKeyDown(keyboardEvent: IKeyboardEvent): void {
+		keyboardEvent.preventDefault();
+		keyboardEvent.stopPropagation();
+
+		const keybinding = this.keybindingService.resolveKeyboardEvent(keyboardEvent);
+		const hasFirstPart = (this._firstPart && this._firstPart.getDispatchParts()[0] !== null);
+		const hasChordPart = (this._chordPart && this._chordPart.getDispatchParts()[0] !== null);
+		if (hasFirstPart && hasChordPart) {
+			// Reset
+			this._firstPart = keybinding;
+			this._chordPart = null;
+		} else if (!hasFirstPart) {
+			this._firstPart = keybinding;
+		} else {
+			this._chordPart = keybinding;
+		}
+
+		dom.clearNode(this._recordingNode);
+		new KeybindingLabel(this._recordingNode, OS).set(this._firstPart);
+		if (this._chordPart) {
+			dom.append(this._recordingNode, dom.$('span.monaco-keybinding-key-chord-separator', undefined, ' '));
+			new KeybindingLabel(this._recordingNode, OS).set(keybinding[1]);
+		}
+		this._onDidChange.fire(this.getUserSettingsLabel());
+	}
+}
+
 export class KeybindingsSearchWidget extends SearchWidget {
 
 	private _firstPart: ResolvedKeybinding;
