@@ -93,6 +93,21 @@
 
 /** List based styling **/
 
+.keybindings-editor > .keybindings-body {
+	position: relative;
+}
+
+.keybindings-editor > .keybindings-body > .keybindings-sash-container {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.keybindings-editor > .keybindings-body > .keybindings-sash-container > .monaco-sash {
+	pointer-events: initial;
+}
+
 .keybindings-editor > .keybindings-body > .keybindings-list-header,
 .keybindings-editor > .keybindings-body .keybindings-list-container {
 	width: 100%;

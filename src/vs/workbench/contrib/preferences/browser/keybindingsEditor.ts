@@ -46,13 +46,23 @@ import { attachStylerCallback, attachInputBoxStyler } from 'vs/platform/theme/co
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { InputBox, MessageType } from 'vs/base/browser/ui/inputbox/inputBox';
 import { Emitter, Event } from 'vs/base/common/event';
+import { Sash, Orientation, ISashEvent as IBaseSashEvent, ISashLayoutProvider, SashState } from 'vs/base/browser/ui/sash/sash';
 
 const $ = DOM.$;
+
+interface ISashEvent {
+	sash: Sash;
+	start: number;
+	current: number;
+	alt: boolean;
+}
 
 interface ColumnItem {
 	column: HTMLElement;
 	proportion?: number;
+	sash?: Sash;
 	width: number;
+	minWidth: number;
 }
 
 export class KeybindingsEditor extends BaseEditor implements IKeybindingsEditor {
@@ -406,8 +416,11 @@ export class KeybindingsEditor extends BaseEditor implements IKeybindingsEditor 
 
 	private createBody(parent: HTMLElement): void {
 		const bodyContainer = DOM.append(parent, $('.keybindings-body'));
+		const sashContainer = DOM.append(bodyContainer, $('.keybindings-sash-container'));
+
 		this.createListHeader(bodyContainer);
 		this.createList(bodyContainer);
+		this.createSashes(sashContainer);
 	}
 
 	private createListHeader(parent: HTMLElement): void {
@@ -417,19 +430,19 @@ export class KeybindingsEditor extends BaseEditor implements IKeybindingsEditor 
 
 		this.columnItems = [];
 		let column = $('.header.actions');
-		this.columnItems.push({ column, width: 30 });
+		this.columnItems.push({ column, width: 30, minWidth: 30 });
 
 		column = $('.header.command', undefined, localize('command', "Command"));
-		this.columnItems.push({ column, proportion: 0.3, width: 0 });
+		this.columnItems.push({ column, proportion: 0.3, width: 0, minWidth: 100 });
 
 		column = $('.header.keybinding', undefined, localize('keybinding', "Keybinding"));
-		this.columnItems.push({ column, proportion: 0.2, width: 0 });
+		this.columnItems.push({ column, proportion: 0.2, width: 0, minWidth: 100 });
 
 		column = $('.header.when', undefined, localize('when', "When"));
-		this.columnItems.push({ column, proportion: 0.4, width: 0 });
+		this.columnItems.push({ column, proportion: 0.4, width: 0, minWidth: 100 });
 
 		column = $('.header.source', undefined, localize('source', "Source"));
-		this.columnItems.push({ column, proportion: 0.1, width: 0 });
+		this.columnItems.push({ column, proportion: 0.1, width: 0, minWidth: 100 });
 
 		DOM.append(keybindingsListHeader, ...this.columnItems.map(({ column }) => column));
 	}
@@ -463,6 +476,68 @@ export class KeybindingsEditor extends BaseEditor implements IKeybindingsEditor 
 				e.stopPropagation();
 			}
 		}));
+	}
+
+	private createSashes(container: HTMLElement): void {
+		this.columnItems[1].sash = this.createSash(container, 1);
+		this.columnItems[2].sash = this.createSash(container, 2);
+		this.columnItems[3].sash = this.createSash(container, 3);
+	}
+
+	private createSash(container: HTMLElement, index): Sash {
+		const layoutProvider: ISashLayoutProvider = { getVerticalSashLeft: () => this.getSashPosition(index), getVerticalSashHeight: () => this.getSashHeight() };
+		const sash = new Sash(container, layoutProvider, {
+			orientation: Orientation.VERTICAL,
+		});
+
+		const sashEventMapper = (e: IBaseSashEvent) => ({ sash, start: e.startX, current: e.currentX, alt: e.altKey } as ISashEvent);
+
+		let start: number;
+		this._register(Event.map(sash.onDidStart, sashEventMapper)(e => start = e.start));
+		this._register(Event.map(sash.onDidChange, sashEventMapper)((e) => {
+			let delta = e.current - start;
+			start = e.current;
+
+			const newWidth1 = this.columnItems[index].width + delta;
+			const newWidth2 = this.columnItems[index + 1].width - delta;
+			const min = newWidth1 < 100;
+			const max = newWidth2 < 100;
+
+			if (min && max) {
+				delta = 0;
+				sash.state = SashState.Disabled;
+			} else if (min && !max) {
+				delta = this.columnItems[index].width - 100;
+				sash.state = SashState.Minimum;
+			} else if (!min && max) {
+				delta = 100 - this.columnItems[index + 1].width;
+				sash.state = SashState.Maximum;
+			} else {
+				sash.state = SashState.Enabled;
+			}
+			this.columnItems[index].width = this.columnItems[index].width + delta;
+			this.columnItems[index + 1].width = this.columnItems[index + 1].width - delta;
+
+			sash.layout();
+			this.layoutColumns(this.columnItems.map(({ column }) => column));
+			this._onLayout.fire();
+		}));
+
+		// const onDidResetDisposable = sash.onDidReset(() => this._onDidSashReset.fire(firstIndex(this.sashItems, item => item.sash === sash)));
+		return sash;
+	}
+
+	private getSashPosition(index: number): number {
+		let position = 0;
+		for (let i = 0; i <= index; i++) {
+			position += this.columnItems[i].width;
+		}
+		// console.log(position);
+		return position;
+	}
+
+	private getSashHeight(): number {
+		return this.dimension.height - (DOM.getDomNodePagePosition(this.headerContainer).height + 12 /*padding*/);
 	}
 
 	private render(preserveFocus: boolean, token: CancellationToken): Promise<any> {
@@ -551,6 +626,9 @@ export class KeybindingsEditor extends BaseEditor implements IKeybindingsEditor 
 		for (const columnItem of this.columnItems) {
 			if (columnItem.proportion && !columnItem.width) {
 				columnItem.width = width * columnItem.proportion;
+			}
+			if (columnItem.sash) {
+				columnItem.sash.layout();
 			}
 		}
 
