@@ -44,7 +44,7 @@ import { ExtensionHostProfileService } from 'vs/workbench/contrib/extensions/ele
 import { RuntimeExtensionsInput } from 'vs/workbench/services/extensions/electron-browser/runtimeExtensionsInput';
 import { URI } from 'vs/base/common/uri';
 import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
-import { ExtensionsEditor, ExtensionsEditorInput } from 'vs/workbench/parts/extensions/electron-browser/extensionsEditor';
+import { ExtensionsEditor, ExtensionsEditorInput } from 'vs/workbench/contrib/extensions/electron-browser/extensionsEditor';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { ExtensionActivationProgress } from 'vs/workbench/contrib/extensions/electron-browser/extensionsActivationProgress';
 import { ExtensionsAutoProfiler } from 'vs/workbench/contrib/extensions/electron-browser/extensionsAutoProfiler';

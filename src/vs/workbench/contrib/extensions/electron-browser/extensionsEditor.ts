@@ -14,12 +14,12 @@ import { ActionBar, Separator } from 'vs/base/browser/ui/actionbar/actionbar';
 import { IPagedRenderer } from 'vs/base/browser/ui/list/listPaging';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { INotificationService } from 'vs/platform/notification/common/notification';
-import { IExtensionsWorkbenchService, IExtension, ExtensionContainers } from 'vs/workbench/parts/extensions/common/extensions';
+import { IExtensionsWorkbenchService, IExtension, ExtensionContainers } from 'vs/workbench/contrib/extensions/common/extensions';
 import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
 import { IExtensionManagementServerService } from 'vs/platform/extensionManagement/common/extensionManagement';
-import { RecommendationWidget, RemoteBadgeWidget, InstallCountWidget, RatingsWidget, Label } from 'vs/workbench/parts/extensions/electron-browser/extensionsWidgets';
+import { RecommendationWidget, RemoteBadgeWidget, InstallCountWidget, RatingsWidget, Label } from 'vs/workbench/contrib/extensions/electron-browser/extensionsWidgets';
 import { Action, IAction } from 'vs/base/common/actions';
-import { ManageExtensionAction, ExtensionActionItem, StatusLabelAction, UpdateAction, ReloadAction, InstallAction, MaliciousStatusLabelAction } from 'vs/workbench/parts/extensions/electron-browser/extensionsActions';
+import { ManageExtensionAction, ExtensionActionItem, StatusLabelAction, UpdateAction, ReloadAction, InstallAction, MaliciousStatusLabelAction } from 'vs/workbench/contrib/extensions/electron-browser/extensionsActions';
 import { areSameExtensions } from 'vs/platform/extensionManagement/common/extensionManagementUtil';
 import { domEvent } from 'vs/base/browser/event';
 import { Event } from 'vs/base/common/event';
@@ -27,14 +27,14 @@ import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IStorageService } from 'vs/platform/storage/common/storage';
-import { SearchWidget } from 'vs/workbench/parts/preferences/browser/preferencesWidgets';
+import { SearchWidget } from 'vs/workbench/contrib/preferences/browser/preferencesWidgets';
 import { WorkbenchPagedList } from 'vs/platform/list/browser/listService';
 import { localize } from 'vs/nls';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { isPromiseCanceledError } from 'vs/base/common/errors';
 import { createErrorWithActions } from 'vs/base/common/errorsWithActions';
-import { OpenGlobalSettingsAction } from 'vs/workbench/parts/preferences/browser/preferencesActions';
+import { OpenGlobalSettingsAction } from 'vs/workbench/contrib/preferences/browser/preferencesActions';
 import { EditorOptions, EditorInput } from 'vs/workbench/common/editor';
 import { CancellationToken } from 'vscode';
 import { IPagedModel, DelayedPagedModel, PagedModel } from 'vs/base/common/paging';
@@ -42,6 +42,7 @@ import { Delayer } from 'vs/base/common/async';
 import { ExtensionType } from 'vs/platform/extensions/common/extensions';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { KeyCode } from 'vs/base/common/keyCodes';
+import { IWorkbenchThemeService } from 'vs/workbench/services/themes/common/workbenchThemeService';
 
 export class ExtensionsEditorInput extends EditorInput {
 
@@ -477,7 +478,8 @@ export class ExtensionsEditor extends BaseEditor {
 		@IStorageService storageService: IStorageService,
 		@IExtensionService private readonly extensionService: IExtensionService,
 		@IEditorService private readonly editorService: IEditorService,
-		@IContextMenuService private readonly contextMenuService: IContextMenuService
+		@IContextMenuService private readonly contextMenuService: IContextMenuService,
+		@IWorkbenchThemeService private readonly workbenchThemeService: IWorkbenchThemeService
 	) {
 		super(ExtensionsEditor.ID, telemetryService, themeService, storageService);
 		this.delayedFiltering = new Delayer<void>(300);
@@ -851,24 +853,24 @@ export class ExtensionsEditor extends BaseEditor {
 		}
 	}
 
-	private onContextMenu(e: IListContextMenuEvent<IExtension>): void {
+	private async onContextMenu(e: IListContextMenuEvent<IExtension>): Promise<void> {
 		if (e.element) {
-			this.extensionService.getExtensions()
-				.then(runningExtensions => {
-					const manageExtensionAction = this.instantiationService.createInstance(ManageExtensionAction);
-					manageExtensionAction.extension = e.element;
-					const groups = manageExtensionAction.getActionGroups(runningExtensions);
-					let actions: IAction[] = [];
-					for (const menuActions of groups) {
-						actions = [...actions, ...menuActions, new Separator()];
-					}
-					if (manageExtensionAction.enabled) {
-						this.contextMenuService.showContextMenu({
-							getAnchor: () => e.anchor,
-							getActions: () => actions.slice(0, actions.length - 1)
-						});
-					}
+			const runningExtensions = await this.extensionService.getExtensions();
+			const colorThemes = await this.workbenchThemeService.getColorThemes();
+			const fileIconThemes = await this.workbenchThemeService.getFileIconThemes();
+			const manageExtensionAction = this.instantiationService.createInstance(ManageExtensionAction);
+			manageExtensionAction.extension = e.element;
+			const groups = manageExtensionAction.getActionGroups(runningExtensions, colorThemes, fileIconThemes);
+			let actions: IAction[] = [];
+			for (const menuActions of groups) {
+				actions = [...actions, ...menuActions, new Separator()];
+			}
+			if (manageExtensionAction.enabled) {
+				this.contextMenuService.showContextMenu({
+					getAnchor: () => e.anchor,
+					getActions: () => actions.slice(0, actions.length - 1)
 				});
+			}
 		}
 	}
 
