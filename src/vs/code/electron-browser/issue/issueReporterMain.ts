@@ -342,7 +342,19 @@ export class IssueReporter extends Disposable {
 		}
 
 		this.addEventListener('issue-source', 'change', (e: Event) => {
-			const fileOnExtension = JSON.parse((<HTMLInputElement>e.target).value);
+			const value = (<HTMLInputElement>e.target).value;
+			const problemSourceHelpText = this.getElementById('problem-source-help-text')!;
+			if (value === '') {
+				this.issueReporterModel.update({ fileOnExtension: undefined, includeExtensions: false });
+				show(problemSourceHelpText);
+				this.clearSearchResults();
+				this.render();
+				return;
+			} else {
+				hide(problemSourceHelpText);
+			}
+
+			const fileOnExtension = JSON.parse(value);
 			this.issueReporterModel.update({ fileOnExtension: fileOnExtension, includeExtensions: !fileOnExtension });
 			this.render();
 
@@ -360,7 +372,7 @@ export class IssueReporter extends Disposable {
 			this.issueReporterModel.update({ issueDescription });
 
 			// Only search for extension issues on title change
-			if (!this.issueReporterModel.fileOnExtension()) {
+			if (this.issueReporterModel.fileOnExtension() === false) {
 				const title = (<HTMLInputElement>this.getElementById('issue-title')).value;
 				this.searchVSCodeIssues(title, issueDescription);
 			}
@@ -375,7 +387,12 @@ export class IssueReporter extends Disposable {
 				hide(lengthValidationMessage);
 			}
 
-			if (this.issueReporterModel.fileOnExtension()) {
+			const fileOnExtension = this.issueReporterModel.fileOnExtension();
+			if (fileOnExtension === undefined) {
+				return;
+			}
+
+			if (fileOnExtension) {
 				this.searchExtensionIssues(title);
 			} else {
 				const description = this.issueReporterModel.getData().issueDescription;
@@ -676,7 +693,6 @@ export class IssueReporter extends Disposable {
 		const settingsSearchResultsBlock = document.querySelector('.block-settingsSearchResults');
 
 		const problemSource = this.getElementById('problem-source')!;
-		const problemSourceHelpText = this.getElementById('problem-source-help-text')!;
 		const descriptionTitle = this.getElementById('issue-description-label')!;
 		const descriptionSubtitle = this.getElementById('issue-description-subtitle')!;
 		const extensionSelector = this.getElementById('extension-selection')!;
@@ -690,7 +706,6 @@ export class IssueReporter extends Disposable {
 		hide(searchedExtensionsBlock);
 		hide(settingsSearchResultsBlock);
 		hide(problemSource);
-		hide(problemSourceHelpText);
 		hide(extensionSelector);
 
 		if (issueType === IssueType.Bug) {
@@ -702,7 +717,6 @@ export class IssueReporter extends Disposable {
 				show(extensionSelector);
 			} else {
 				show(extensionsBlock);
-				show(problemSourceHelpText);
 			}
 
 			descriptionTitle.innerHTML = `${localize('stepsToReproduce', "Steps to Reproduce")} <span class="required-input">*</span>`;
@@ -718,7 +732,6 @@ export class IssueReporter extends Disposable {
 				show(extensionSelector);
 			} else {
 				show(extensionsBlock);
-				show(problemSourceHelpText);
 			}
 
 			descriptionTitle.innerHTML = `${localize('stepsToReproduce', "Steps to Reproduce")} <span class="required-input">*</span>`;
@@ -780,6 +793,10 @@ export class IssueReporter extends Disposable {
 
 			this.addEventListener('description', 'input', _ => {
 				this.validateInput('description');
+			});
+
+			this.addEventListener('issue-source', 'change', _ => {
+				this.validateInput('issue-source');
 			});
 
 			if (this.issueReporterModel.fileOnExtension()) {
