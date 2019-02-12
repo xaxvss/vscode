@@ -217,7 +217,13 @@ function asObjectTreeOptions<TInput, T, TFilterData>(options?: IAsyncDataTreeOpt
 				return options.keyboardNavigationLabelProvider!.getKeyboardNavigationLabel(e.element as T);
 			}
 		},
-		sorter: undefined
+		sorter: undefined,
+		expandOnlyOnTwistieClick: typeof options.expandOnlyOnTwistieClick === 'undefined' ? undefined : (
+			typeof options.expandOnlyOnTwistieClick !== 'function' ? options.expandOnlyOnTwistieClick : (
+				e => (options.expandOnlyOnTwistieClick as ((e: T) => boolean))(e.element as T)
+			)
+		),
+		ariaSetProvider: undefined
 	};
 }
 
@@ -260,7 +266,7 @@ export class AsyncDataTree<TInput, T, TFilterData = void> implements IDisposable
 
 	private readonly tree: ObjectTree<IAsyncDataTreeNode<TInput, T>, TFilterData>;
 	private readonly root: IAsyncDataTreeNode<TInput, T>;
-	private readonly renderedNodes = new Map<null | T, IAsyncDataTreeNode<TInput, T>>();
+	private readonly nodes = new Map<null | T, IAsyncDataTreeNode<TInput, T>>();
 	private readonly sorter?: ITreeSorter<T>;
 
 	private readonly subTreeRefreshPromises = new Map<IAsyncDataTreeNode<TInput, T>, Promise<void>>();
@@ -326,7 +332,7 @@ export class AsyncDataTree<TInput, T, TFilterData = void> implements IDisposable
 			};
 		}
 
-		this.renderedNodes.set(null, this.root);
+		this.nodes.set(null, this.root);
 
 		this.tree.onDidChangeCollapseState(this._onDidChangeCollapseState, this, this.disposables);
 	}
@@ -410,6 +416,10 @@ export class AsyncDataTree<TInput, T, TFilterData = void> implements IDisposable
 		}
 
 		await this.refreshAndRenderNode(this.getDataNode(element), recursive, ChildrenResolutionReason.Refresh, viewStateContext);
+	}
+
+	hasNode(element: TInput | T): boolean {
+		return element === this.root.element || this.nodes.has(element as T);
 	}
 
 	// View
@@ -570,7 +580,7 @@ export class AsyncDataTree<TInput, T, TFilterData = void> implements IDisposable
 	// Implementation
 
 	private getDataNode(element: TInput | T): IAsyncDataTreeNode<TInput, T> {
-		const node: IAsyncDataTreeNode<TInput, T> | undefined = this.renderedNodes.get((element === this.root.element ? null : element) as T);
+		const node: IAsyncDataTreeNode<TInput, T> | undefined = this.nodes.get((element === this.root.element ? null : element) as T);
 
 		if (!node) {
 			throw new Error(`Data tree node not found: ${element}`);
@@ -805,7 +815,7 @@ export class AsyncDataTree<TInput, T, TFilterData = void> implements IDisposable
 		const onDidCreateNode = (treeNode: ITreeNode<IAsyncDataTreeNode<TInput, T>, TFilterData>) => {
 			if (treeNode.element.element) {
 				insertedElements.add(treeNode.element.element as T);
-				this.renderedNodes.set(treeNode.element.element as T, treeNode.element);
+				this.nodes.set(treeNode.element.element as T, treeNode.element);
 			}
 		};
 
@@ -813,7 +823,7 @@ export class AsyncDataTree<TInput, T, TFilterData = void> implements IDisposable
 			if (treeNode.element.element) {
 				if (!insertedElements.has(treeNode.element.element as T)) {
 					treeNode.element.disposed = true;
-					this.renderedNodes.delete(treeNode.element.element as T);
+					this.nodes.delete(treeNode.element.element as T);
 				}
 			}
 		};

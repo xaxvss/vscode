@@ -555,7 +555,7 @@ export class FileService extends Disposable implements IFileService {
 
 		// 1.) check file for writing
 		return this.checkFileBeforeWriting(absolutePath, options).then(exists => {
-			let createParentsPromise: Promise<boolean>;
+			let createParentsPromise: Promise<any>;
 			if (exists) {
 				createParentsPromise = Promise.resolve();
 			} else {
@@ -1142,7 +1142,7 @@ export class StatResolver {
 		this.etag = etag(size, mtime);
 	}
 
-	resolve(options: IResolveFileOptions): Promise<IFileStat> {
+	resolve(options: IResolveFileOptions | undefined): Promise<IFileStat> {
 
 		// General Data
 		const fileStat: IFileStat = {

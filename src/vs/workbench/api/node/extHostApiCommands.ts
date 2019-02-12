@@ -11,13 +11,13 @@ import * as types from 'vs/workbench/api/node/extHostTypes';
 import { IRawColorInfo, WorkspaceEditDto } from 'vs/workbench/api/node/extHost.protocol';
 import { ISingleEditOperation } from 'vs/editor/common/model';
 import * as modes from 'vs/editor/common/modes';
-import * as search from 'vs/workbench/parts/search/common/search';
+import * as search from 'vs/workbench/contrib/search/common/search';
 import { ICommandHandlerDescription } from 'vs/platform/commands/common/commands';
 import { ExtHostCommands } from 'vs/workbench/api/node/extHostCommands';
 import { CustomCodeAction } from 'vs/workbench/api/node/extHostLanguageFeatures';
 import { ICommandsExecutor, PreviewHTMLAPICommand, OpenFolderAPICommand, DiffAPICommand, OpenAPICommand, RemoveFromRecentlyOpenedAPICommand, SetEditorLayoutAPICommand } from './apiCommands';
-import { EditorGroupLayout } from 'vs/workbench/services/group/common/editorGroupsService';
-import { isFalsyOrEmpty, isNonEmptyArray } from 'vs/base/common/arrays';
+import { EditorGroupLayout } from 'vs/workbench/services/editor/common/editorGroupsService';
+import { isFalsyOrEmpty } from 'vs/base/common/arrays';
 
 export class ExtHostApiCommands {
 
@@ -199,7 +199,7 @@ export class ExtHostApiCommands {
 			description: 'Execute selection range provider.',
 			args: [
 				{ name: 'uri', description: 'Uri of a text document', constraint: URI },
-				{ name: 'position', description: 'Position in a text document', constraint: types.Position }
+				{ name: 'positions', description: 'Positions in a text document', constraint: a => Array.isArray(a) }
 			],
 			returns: 'A promise that resolves to an array of ranges.'
 		});
@@ -372,7 +372,7 @@ export class ExtHostApiCommands {
 				return undefined;
 			}
 			if (value.rejectReason) {
-				return Promise.reject(new Error(value.rejectReason));
+				return Promise.reject<any>(new Error(value.rejectReason));
 			}
 			return typeConverters.WorkspaceEdit.to(value);
 		});
@@ -420,16 +420,15 @@ export class ExtHostApiCommands {
 		});
 	}
 
-	private _executeSelectionRangeProvider(resource: URI, position: types.Position): Promise<vscode.SelectionRange[]> {
+	private _executeSelectionRangeProvider(resource: URI, positions: types.Position[]): Promise<vscode.SelectionRange[][]> {
+		let pos = positions.map(typeConverters.Position.from);
 		const args = {
 			resource,
-			position: position && typeConverters.Position.from(position)
+			position: pos[0],
+			positions: pos
 		};
-		return this._commands.executeCommand<modes.SelectionRange[]>('_executeSelectionRangeProvider', args).then(result => {
-			if (isNonEmptyArray(result)) {
-				return result.map(typeConverters.SelectionRange.to);
-			}
-			return [];
+		return this._commands.executeCommand<modes.SelectionRange[][]>('_executeSelectionRangeProvider', args).then(result => {
+			return result.map(oneResult => oneResult.map(typeConverters.SelectionRange.to));
 		});
 	}
 

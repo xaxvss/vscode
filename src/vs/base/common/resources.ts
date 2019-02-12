@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as paths from 'vs/base/common/paths';
+import { isAbsolute } from 'vs/base/common/paths.node';
 import { URI } from 'vs/base/common/uri';
 import { equalsIgnoreCase } from 'vs/base/common/strings';
 import { Schemas } from 'vs/base/common/network';
@@ -89,18 +90,18 @@ export function dirname(resource: URI): URI | null {
 }
 
 /**
- * Join a URI path with a path fragment and normalizes the resulting path.
+ * Join a URI path with path fragments and normalizes the resulting path.
  *
  * @param resource The input URI.
  * @param pathFragment The path fragment to add to the URI path.
  * @returns The resulting URI.
  */
-export function joinPath(resource: URI, pathFragment: string): URI {
+export function joinPath(resource: URI, ...pathFragment: string[]): URI {
 	let joinedPath: string;
 	if (resource.scheme === Schemas.file) {
-		joinedPath = URI.file(paths.join(fsPath(resource), pathFragment)).path;
+		joinedPath = URI.file(paths.join(fsPath(resource), ...pathFragment)).path;
 	} else {
-		joinedPath = paths.join(resource.path, pathFragment);
+		joinedPath = paths.join(resource.path, ...pathFragment);
 	}
 	return resource.with({
 		path: joinedPath
@@ -159,7 +160,7 @@ export function fsPath(uri: URI): string {
  * Returns true if the URI path is absolute.
  */
 export function isAbsolutePath(resource: URI): boolean {
-	return paths.isAbsolute(resource.path);
+	return isAbsolute(resource.path);
 }
 
 export function distinctParents<T>(items: T[], resourceAccessor: (item: T) => URI): T[] {
