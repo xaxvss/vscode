@@ -135,6 +135,8 @@ import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { OpenerService } from 'vs/editor/browser/services/openerService';
 import { IIntegrityService } from 'vs/workbench/services/integrity/common/integrity';
 import { ILocalizationsService } from 'vs/platform/localizations/common/localizations';
+import { HistoryService } from 'vs/workbench/services/history/browser/history';
+import { ConfigurationResolverService } from 'vs/workbench/services/configurationResolver/browser/configurationResolverService';
 
 // import@node
 import product from 'vs/platform/node/product';
@@ -165,18 +167,16 @@ import { IntegrityServiceImpl } from 'vs/workbench/services/integrity/node/integ
 import { LocalizationsChannelClient } from 'vs/platform/localizations/node/localizationsIpc';
 
 // import@electron-browser
-import { HistoryService } from 'vs/workbench/services/history/electron-browser/history';
 import { ContextMenuService as NativeContextMenuService } from 'vs/workbench/services/contextview/electron-browser/contextmenuService';
 import { WorkbenchKeybindingService } from 'vs/workbench/services/keybinding/electron-browser/keybindingService';
 import { RemoteFileService } from 'vs/workbench/services/files/electron-browser/remoteFileService';
-import { ConfigurationResolverService } from 'vs/workbench/services/configurationResolver/electron-browser/configurationResolverService';
 import { ClipboardService } from 'vs/platform/clipboard/electron-browser/clipboardService';
 import { LifecycleService } from 'vs/platform/lifecycle/electron-browser/lifecycleService';
 import { ToggleDevToolsAction } from 'vs/workbench/electron-browser/actions/developerActions';
 import { registerWindowDriver } from 'vs/platform/driver/electron-browser/driver';
 import { IExtensionUrlHandler, ExtensionUrlHandler } from 'vs/workbench/services/extensions/electron-browser/inactiveExtensionUrlHandler';
 import { WorkbenchThemeService } from 'vs/workbench/services/themes/electron-browser/workbenchThemeService';
-import { RemoteFileDialogService, DialogService } from 'vs/workbench/services/dialogs/electron-browser/dialogService';
+import { DialogService, FileDialogService } from 'vs/workbench/services/dialogs/electron-browser/dialogService';
 import { ShowPreviousWindowTab, MoveWindowTabToNewWindow, MergeAllWindowTabs, ShowNextWindowTab, ToggleWindowTabsBar, NewWindowTab, OpenRecentAction, ReloadWindowAction, ReloadWindowWithExtensionsDisabledAction } from 'vs/workbench/electron-browser/actions/windowActions';
 import { IBroadcastService, BroadcastService } from 'vs/workbench/services/broadcast/electron-browser/broadcastService';
 import { WindowService } from 'vs/platform/windows/electron-browser/windowService';
@@ -716,7 +716,7 @@ export class Workbench extends Disposable implements IPartService {
 		serviceCollection.set(IHistoryService, new SyncDescriptor(HistoryService));
 
 		// File Dialogs
-		serviceCollection.set(IFileDialogService, new SyncDescriptor(RemoteFileDialogService));
+		serviceCollection.set(IFileDialogService, new SyncDescriptor(FileDialogService));
 
 		// Backup File Service
 		if (this.workbenchParams.configuration.backupPath) {
