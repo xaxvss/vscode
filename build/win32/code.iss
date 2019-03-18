@@ -98,7 +98,7 @@ Filename: "{app}\{#ExeBasename}.exe"; Description: "{cm:LaunchProgram,{#NameLong
 #endif
 #define ExeBasenameNoSpaces StringChange(ExeBasename, ' ', '')
 
-Filename: powershell.exe; Parameters: "if (!(Test-Path alias:code)) {{ '','Set-Alias -Name code -Value ''{app}\bin\{#ExeBasenameNoSpaces}.ps1'' -Description ''{#NameLong}''' | Add-Content -LiteralPath $profile.{#PowerShellProfilePropName} }"; Description: Updating PowerShell profile; Tasks: addpowershellalias; Flags: runascurrentuser
+Filename: powershell.exe; Parameters: "if (!(Test-Path alias:code)) {{ '','Set-Alias -Name code -Value ''{app}\bin\{#ExeBasenameNoSpaces}.ps1'' -Description ''{#NameLong}''' | Add-Content -Force -LiteralPath $profile.{#PowerShellProfilePropName} }"; Description: Updating PowerShell profile; Tasks: addpowershellalias; Flags: runascurrentuser
 
 [Registry]
 #if "user" == InstallTarget
