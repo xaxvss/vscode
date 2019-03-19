@@ -14,7 +14,7 @@ export function setup() {
 				return;
 			}
 
-			const extensionName = 'German Language Pack for Visual Studio Code';
+			const extensionName = '@id:ms-ceintl.vscode-language-pack-de';
 			await app.workbench.extensions.openExtensionsViewlet();
 			await app.workbench.extensions.installExtension(extensionName);
 
