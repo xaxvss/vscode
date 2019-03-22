@@ -125,7 +125,7 @@ const configurationExtPoint = ExtensionsRegistry.registerExtensionPoint<IConfigu
 	extensionPoint: 'configuration',
 	deps: [defaultConfigurationExtPoint],
 	jsonSchema: {
-		description: nls.localize('vscode.extension.contributes.configuration', 'Contributes configuration settings.'),
+		description: nls.localize('vscode.extension.contributes.configuration', 'Contributes configuration settings. See https://code.visualstudio.com/api/references/contribution-points#contributes.configuration for details.'),
 		oneOf: [
 			configurationEntrySchema,
 			{

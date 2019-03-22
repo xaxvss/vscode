@@ -28,7 +28,7 @@ export const grammarsExtPoint: IExtensionPoint<ITMSyntaxExtensionPoint[]> = Exte
 	extensionPoint: 'grammars',
 	deps: [languagesExtPoint],
 	jsonSchema: {
-		description: nls.localize('vscode.extension.contributes.grammars', 'Contributes textmate tokenizers.'),
+		description: nls.localize('vscode.extension.contributes.grammars', 'Contributes textmate grammars. See https://code.visualstudio.com/api/references/contribution-points#contributes.grammars for details.'),
 		type: 'array',
 		defaultSnippets: [{ body: [{ language: '${1:id}', scopeName: 'source.${2:id}', path: './syntaxes/${3:id}.tmLanguage.' }] }],
 		items: {

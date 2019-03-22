@@ -109,7 +109,7 @@ namespace schema {
 	};
 
 	export const menusContribtion: IJSONSchema = {
-		description: localize('vscode.extension.contributes.menus', "Contributes menu items to the editor"),
+		description: localize('vscode.extension.contributes.menus', "Contributes menu items to the editor. See https://code.visualstudio.com/api/references/contribution-points#contributes.menus for details."),
 		type: 'object',
 		properties: {
 			'commandPalette': {
@@ -284,7 +284,7 @@ namespace schema {
 	};
 
 	export const commandsContribution: IJSONSchema = {
-		description: localize('vscode.extension.contributes.commands', "Contributes commands to the command palette."),
+		description: localize('vscode.extension.contributes.commands', "Contributes commands to the command palette. See https://code.visualstudio.com/api/references/contribution-points#contributes.commands for details."),
 		oneOf: [
 			commandType,
 			{
