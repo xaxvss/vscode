@@ -7,6 +7,61 @@ import { CursorContext, CursorState, PartialCursorState } from 'vs/editor/common
 import { OneCursor } from 'vs/editor/common/controller/oneCursor';
 import { Position } from 'vs/editor/common/core/position';
 import { ISelection, Selection } from 'vs/editor/common/core/selection';
+import { trace } from 'vs/platform/log/common/log';
+
+class Tracer {
+
+	private static _equals(a: CursorState[], b: CursorState[]): boolean {
+		if (a.length !== b.length) {
+			return false;
+		}
+		for (let i = 0, len = a.length; i < len; i++) {
+			const aa = a[i];
+			const bb = b[i];
+			if (!aa.equals(bb)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private readonly _context: CursorContext;
+	private readonly _cursors: CursorState[];
+
+	constructor(context: CursorContext, cursors: CursorState[]) {
+		this._context = context;
+		this._cursors = cursors;
+	}
+
+	public finish(cursors: CursorState[]) {
+		if (Tracer._equals(this._cursors, cursors)) {
+			return;
+		}
+
+		const stack = new Error().stack;
+		let msg = '';
+		msg = '----------------------------\n';
+		msg += `textModel: ${this._context.model.uri.toString()}\n`;
+		msg += `stack: ${stack}\n`;
+
+		for (let i = 0, len = cursors.length; i < len; i++) {
+			msg += this._renderCursor(`${i + 1}/${len}`, cursors[i]);
+		}
+
+		trace(msg);
+	}
+
+	private _renderCursor(cursorId: string, cursor: CursorState): string {
+		let msg = ``;
+		msg += `${cursorId}: view state: ${cursor.viewState.selection} --->>>${this._renderLine(this._context.viewModel.getLineContent(cursor.viewState.position.lineNumber), cursor.viewState.position.column)}\n`;
+		msg += `${cursorId}: model state: ${cursor.modelState.selection} ---->>>${this._renderLine(this._context.model.getLineContent(cursor.modelState.position.lineNumber), cursor.modelState.position.column)}\n`;
+		return msg;
+	}
+
+	private _renderLine(line: string, column: number): string {
+		return line.substr(0, column - 1) + '|' + line.substr(column - 1);
+	}
+}
 
 export class CursorCollection {
 
@@ -49,18 +104,22 @@ export class CursorCollection {
 	}
 
 	public ensureValidState(): void {
+		const trace = new Tracer(this.context, this.getAll());
 		this.primaryCursor.ensureValidState(this.context);
 		for (let i = 0, len = this.secondaryCursors.length; i < len; i++) {
 			this.secondaryCursors[i].ensureValidState(this.context);
 		}
+		trace.finish(this.getAll());
 	}
 
 	public readSelectionFromMarkers(): Selection[] {
+		const trace = new Tracer(this.context, this.getAll());
 		let result: Selection[] = [];
 		result[0] = this.primaryCursor.readSelectionFromMarkers(this.context);
 		for (let i = 0, len = this.secondaryCursors.length; i < len; i++) {
 			result[i + 1] = this.secondaryCursors[i].readSelectionFromMarkers(this.context);
 		}
+		trace.finish(this.getAll());
 		return result;
 	}
 
@@ -112,8 +171,10 @@ export class CursorCollection {
 		if (states === null) {
 			return;
 		}
+		const trace = new Tracer(this.context, this.getAll());
 		this.primaryCursor.setState(this.context, states[0].modelState, states[0].viewState);
 		this._setSecondaryStates(states.slice(1));
+		trace.finish(this.getAll());
 	}
 
 	/**
@@ -141,7 +202,9 @@ export class CursorCollection {
 	}
 
 	public killSecondaryCursors(): void {
+		const trace = new Tracer(this.context, this.getAll());
 		this._setSecondaryStates([]);
+		trace.finish(this.getAll());
 	}
 
 	private _addSecondaryCursor(): void {
@@ -177,6 +240,7 @@ export class CursorCollection {
 		if (this.secondaryCursors.length === 0) {
 			return;
 		}
+		const trace = new Tracer(this.context, this.getAll());
 		let cursors = this._getAll();
 
 		interface SortedCursor {
@@ -267,5 +331,6 @@ export class CursorCollection {
 				sortedCursorIndex--;
 			}
 		}
+		trace.finish(this.getAll());
 	}
 }

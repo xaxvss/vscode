@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as path from 'vs/base/common/path';
-import { ILogService, LogLevel, NullLogService, AbstractLogService } from 'vs/platform/log/common/log';
+import { ILogService, LogLevel, NullLogService, AbstractLogService, setTraceFn } from 'vs/platform/log/common/log';
 import * as spdlog from 'spdlog';
 
 export function createSpdLogService(processName: string, logLevel: LogLevel, logsFolder: string): ILogService {
@@ -38,6 +38,8 @@ class SpdLogService extends AbstractLogService implements ILogService {
 	) {
 		super();
 		this.setLevel(level);
+
+		setTraceFn((msg) => this.logger.info(msg));
 	}
 
 	trace(): void {

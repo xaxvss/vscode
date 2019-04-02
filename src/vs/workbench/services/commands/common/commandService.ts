@@ -8,7 +8,7 @@ import { ICommandService, ICommandEvent, CommandsRegistry } from 'vs/platform/co
 import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
 import { Event, Emitter } from 'vs/base/common/event';
 import { Disposable } from 'vs/base/common/lifecycle';
-import { ILogService } from 'vs/platform/log/common/log';
+import { ILogService, trace } from 'vs/platform/log/common/log';
 import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { timeout } from 'vs/base/common/async';
 
@@ -78,6 +78,7 @@ export class CommandService extends Disposable implements ICommandService {
 		}
 		try {
 			this._onWillExecuteCommand.fire({ commandId: id });
+			trace(`CommandService: executing ${id}`);
 			const result = this._instantiationService.invokeFunction.apply(this._instantiationService, [command.handler, ...args]);
 			return Promise.resolve(result);
 		} catch (err) {

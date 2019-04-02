@@ -18,6 +18,7 @@ import { INotificationService } from 'vs/platform/notification/common/notificati
 import { IStatusbarService } from 'vs/platform/statusbar/common/statusbar';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { withNullAsUndefined } from 'vs/base/common/types';
+import { trace } from 'vs/platform/log/common/log';
 
 interface CurrentChord {
 	keypress: string;
@@ -181,6 +182,7 @@ export abstract class AbstractKeybindingService extends Disposable implements IK
 			// cannot be dispatched, probably only modifier keys
 			return shouldPreventDefault;
 		}
+		trace(`KeybindingService: dispatching ${firstPart}`);
 
 		const contextValue = this._contextKeyService.getContext(target);
 		const currentChord = this._currentChord ? this._currentChord.keypress : null;

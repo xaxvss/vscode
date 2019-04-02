@@ -11,6 +11,14 @@ import { IEnvironmentService } from 'vs/platform/environment/common/environment'
 
 export const ILogService = createServiceDecorator<ILogService>('logService');
 
+export let _traceFn: (str: string) => void;
+export function trace(str: string): void {
+	_traceFn(str);
+}
+export function setTraceFn(newTraceFn: (str: string) => void): void {
+	_traceFn = newTraceFn;
+}
+
 function now(): string {
 	return new Date().toISOString();
 }
