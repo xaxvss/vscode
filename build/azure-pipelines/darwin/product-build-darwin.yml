@@ -36,12 +36,12 @@ steps:
     yarn gulp -- upload-vscode-sourcemaps
   displayName: Build
 
-- script: |
-    set -e
-    ./scripts/test.sh --build --tfs "Unit Tests"
-    # APP_NAME="`ls $(agent.builddirectory)/VSCode-darwin | head -n 1`"
-    # yarn smoketest -- --build "$(agent.builddirectory)/VSCode-darwin/$APP_NAME"
-  displayName: Run unit tests
+# - script: |
+#     set -e
+#     ./scripts/test.sh --build --tfs "Unit Tests"
+#     # APP_NAME="`ls $(agent.builddirectory)/VSCode-darwin | head -n 1`"
+#     # yarn smoketest -- --build "$(agent.builddirectory)/VSCode-darwin/$APP_NAME"
+#   displayName: Run unit tests
 
 - script: |
     set -e
