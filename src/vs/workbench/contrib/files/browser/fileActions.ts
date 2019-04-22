@@ -45,6 +45,7 @@ import { AsyncDataTree } from 'vs/base/browser/ui/tree/asyncDataTree';
 import { ExplorerItem, NewExplorerItem } from 'vs/workbench/contrib/files/common/explorerModel';
 import { onUnexpectedError } from 'vs/base/common/errors';
 import { sequence } from 'vs/base/common/async';
+import { IProgressService2, IProgressStep, IProgress, ProgressLocation } from 'vs/platform/progress/common/progress';
 
 export const NEW_FILE_COMMAND_ID = 'explorer.newFile';
 export const NEW_FILE_LABEL = nls.localize('newFile', "New File");
@@ -136,6 +137,38 @@ export class NewFolderAction extends Action {
 		dispose(this.toDispose);
 	}
 }
+
+// export class ShowProgressDialogAction extends Action {
+// 	public static readonly ID = 'workbench.action.showProgressDialog';
+// 	public static readonly LABEL = nls.localize('showProgressDialog', "Show Progress Dialog");
+
+// 	constructor(
+// 		id: string,
+// 		label: string,
+// 		@IProgressService2 private readonly progressService: IProgressService2,
+// 		@INotificationService private readonly notificationService: INotificationService
+// 	) {
+// 		super(id, label);
+// 	}
+
+// 	public run(): Promise<any> {
+// 		const task = (progress: IProgress<IProgressStep>): any => {
+// 			progress.report({ message: 'The process is taking longer than expected. Please wait or cancel the process...'});
+
+// 			return new Promise((resolve, reject) => {
+// 				setTimeout(() => {
+// 					resolve();
+// 				}, 30000);
+// 			});
+// 		};
+
+// 		return this.progressService.withProgress({ location: ProgressLocation.Dialog }, task).then(() => {
+// 			this.notificationService.info('Process finished');
+// 		}, () => {
+// 			this.notificationService.info('Process canceled by user');
+// 		});
+// 	}
+// }
 
 /* Create new file from anywhere: Open untitled */
 export class GlobalNewUntitledFileAction extends Action {
