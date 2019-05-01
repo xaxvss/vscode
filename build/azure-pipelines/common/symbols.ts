@@ -190,7 +190,7 @@ if (process.platform === 'darwin') {
 } else if (process.platform === 'win32') {
 	platform = is64 ? Platform.WIN_64 : Platform.WIN_32;
 } else {
-	platform = is64 ? Platform.LINUX_64 : Platform.LINUX_32;
+	platform = Platform.LINUX_64;
 }
 
 // Create version and upload symbols in HockeyApp
