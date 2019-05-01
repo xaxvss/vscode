@@ -36,7 +36,6 @@ export interface IVersionAccessor extends IApplicationAccessor {
 enum Platform {
 	WIN_32 = 'win32-ia32',
 	WIN_64 = 'win32-x64',
-	LINUX_32 = 'linux-ia32',
 	LINUX_64 = 'linux-x64',
 	MAC_OS = 'darwin-x64'
 }
