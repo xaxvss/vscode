@@ -27,8 +27,7 @@ suite('SearchResult', () => {
 		instantiationService = new TestInstantiationService();
 		instantiationService.stub(ITelemetryService, NullTelemetryService);
 		instantiationService.stub(IModelService, stubModelService(instantiationService));
-		instantiationService.stubPromise(IReplaceService, {});
-		instantiationService.stubPromise(IReplaceService, 'replace', null);
+		instantiationService.stub(IReplaceService, { replace: () => Promise.resolve() });
 	});
 
 	test('Line Match', function () {
@@ -270,7 +269,7 @@ suite('SearchResult', () => {
 
 	test('replace should remove the file match', function () {
 		const voidPromise = Promise.resolve(null);
-		instantiationService.stub(IReplaceService, 'replace', voidPromise);
+		instantiationService.stub(IReplaceService, { replace: () => voidPromise });
 		const testObject = aSearchResult();
 		testObject.add([
 			aRawMatch('file://c:/1',
@@ -284,7 +283,7 @@ suite('SearchResult', () => {
 	test('replace should trigger the change event', function () {
 		const target = sinon.spy();
 		const voidPromise = Promise.resolve(null);
-		instantiationService.stub(IReplaceService, 'replace', voidPromise);
+		instantiationService.stub(IReplaceService, { replace: () => voidPromise });
 		const testObject = aSearchResult();
 		testObject.add([
 			aRawMatch('file://c:/1',

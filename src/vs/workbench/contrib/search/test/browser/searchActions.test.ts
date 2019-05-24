@@ -27,9 +27,10 @@ suite('Search Actions', () => {
 	setup(() => {
 		instantiationService = new TestInstantiationService();
 		instantiationService.stub(IModelService, stubModelService(instantiationService));
-		instantiationService.stub(IKeybindingService, {});
-		instantiationService.stub(IKeybindingService, 'resolveKeybinding', (keybinding: Keybinding) => [new USLayoutResolvedKeybinding(keybinding, OS)]);
-		instantiationService.stub(IKeybindingService, 'lookupKeybinding', (id: string) => null);
+		instantiationService.stub(IKeybindingService, {
+			resolveKeybinding: (keybinding: Keybinding) => [new USLayoutResolvedKeybinding(keybinding, OS)],
+			lookupKeybinding: (id: string) => undefined
+		});
 		counter = 0;
 	});
 

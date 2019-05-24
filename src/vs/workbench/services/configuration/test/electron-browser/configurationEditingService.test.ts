@@ -171,22 +171,22 @@ suite('ConfigurationEditingService', () => {
 	});
 
 	test('errors cases - dirty', () => {
-		instantiationService.stub(ITextFileService, 'isDirty', true);
+		instantiationService.stub(ITextFileService, { isDirty: () => true });
 		return testObject.writeConfiguration(EditableConfigurationTarget.USER_LOCAL, { key: 'configurationEditing.service.testSetting', value: 'value' })
 			.then(() => assert.fail('Should fail with ERROR_CONFIGURATION_FILE_DIRTY error.'),
 				(error: ConfigurationEditingError) => assert.equal(error.code, ConfigurationEditingErrorCode.ERROR_CONFIGURATION_FILE_DIRTY));
 	});
 
 	test('dirty error is not thrown if not asked to save', () => {
-		instantiationService.stub(ITextFileService, 'isDirty', true);
+		instantiationService.stub(ITextFileService, { isDirty: () => true });
 		return testObject.writeConfiguration(EditableConfigurationTarget.USER_LOCAL, { key: 'configurationEditing.service.testSetting', value: 'value' }, { donotSave: true })
 			.then(() => null, error => assert.fail('Should not fail.'));
 	});
 
 	test('do not notify error', () => {
-		instantiationService.stub(ITextFileService, 'isDirty', true);
+		instantiationService.stub(ITextFileService, { isDirty: () => true });
 		const target = sinon.stub();
-		instantiationService.stub(INotificationService, <INotificationService>{ prompt: target, _serviceBrand: null, notify: null!, error: null!, info: null!, warn: null! });
+		instantiationService.stub(INotificationService, { prompt: target, _serviceBrand: null, notify: null!, error: null!, info: null!, warn: null! });
 		return testObject.writeConfiguration(EditableConfigurationTarget.USER_LOCAL, { key: 'configurationEditing.service.testSetting', value: 'value' }, { donotNotifyError: true })
 			.then(() => assert.fail('Should fail with ERROR_CONFIGURATION_FILE_DIRTY error.'),
 				(error: ConfigurationEditingError) => {

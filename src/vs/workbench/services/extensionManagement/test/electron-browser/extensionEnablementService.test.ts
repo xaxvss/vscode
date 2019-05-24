@@ -35,9 +35,9 @@ export class TestExtensionEnablementService extends ExtensionEnablementService {
 		super(
 			storageService(instantiationService),
 			instantiationService.get(IWorkspaceContextService),
-			instantiationService.get(IWorkbenchEnvironmentService) || instantiationService.stub(IWorkbenchEnvironmentService, { configuration: Object.create(null) } as IWorkbenchEnvironmentService),
+			instantiationService.get(IWorkbenchEnvironmentService) || instantiationService.stub(IWorkbenchEnvironmentService, { configuration: Object.create(null) }),
 			instantiationService.get(IExtensionManagementService) || instantiationService.stub(IExtensionManagementService,
-				{ onDidInstallExtension: new Emitter<DidInstallExtensionEvent>().event, onDidUninstallExtension: new Emitter<DidUninstallExtensionEvent>().event } as IExtensionManagementService),
+				{ onDidInstallExtension: new Emitter<DidInstallExtensionEvent>().event, onDidUninstallExtension: new Emitter<DidUninstallExtensionEvent>().event }),
 			instantiationService.get(IConfigurationService), instantiationService.get(IExtensionManagementServerService));
 	}
 
@@ -239,7 +239,7 @@ suite('ExtensionEnablementService Test', () => {
 	});
 
 	test('test disable an extension for workspace when there is no workspace throws error', () => {
-		instantiationService.stub(IWorkspaceContextService, 'getWorkbenchState', WorkbenchState.EMPTY);
+		instantiationService.stub(IWorkspaceContextService, { getWorkbenchState: () => WorkbenchState.EMPTY });
 		return testObject.setEnablement([aLocalExtension('pub.a')], EnablementState.WorkspaceDisabled)
 			.then(() => assert.fail('should throw an error'), error => assert.ok(error));
 	});
@@ -437,26 +437,26 @@ suite('ExtensionEnablementService Test', () => {
 	});
 
 	test('test canChangeEnablement return false when extensions are disabled in environment', () => {
-		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: true } as IWorkbenchEnvironmentService);
+		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: true });
 		testObject = new TestExtensionEnablementService(instantiationService);
 		assert.equal(testObject.canChangeEnablement(aLocalExtension('pub.a')), false);
 	});
 
 	test('test canChangeEnablement return false when the extension is disabled in environment', () => {
-		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: ['pub.a'] } as IWorkbenchEnvironmentService);
+		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: ['pub.a'] });
 		testObject = new TestExtensionEnablementService(instantiationService);
 		assert.equal(testObject.canChangeEnablement(aLocalExtension('pub.a')), false);
 	});
 
 	test('test canChangeEnablement return true for system extensions when extensions are disabled in environment', () => {
-		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: true } as IWorkbenchEnvironmentService);
+		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: true });
 		testObject = new TestExtensionEnablementService(instantiationService);
 		const extension = aLocalExtension('pub.a', undefined, ExtensionType.System);
 		assert.equal(testObject.canChangeEnablement(extension), true);
 	});
 
 	test('test canChangeEnablement return false for system extension when extension is disabled in environment', () => {
-		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: ['pub.a'] } as IWorkbenchEnvironmentService);
+		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: ['pub.a'] });
 		testObject = new TestExtensionEnablementService(instantiationService);
 		const extension = aLocalExtension('pub.a', undefined, ExtensionType.System);
 		assert.ok(!testObject.canChangeEnablement(extension));
@@ -464,7 +464,7 @@ suite('ExtensionEnablementService Test', () => {
 
 	test('test extension is disabled when disabled in enviroment', async () => {
 		const extension = aLocalExtension('pub.a');
-		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: ['pub.a'] } as IWorkbenchEnvironmentService);
+		instantiationService.stub(IWorkbenchEnvironmentService, { disableExtensions: ['pub.a'] });
 		instantiationService.stub(IExtensionManagementService, { onDidUninstallExtension: didUninstallEvent.event, onDidInstallExtension: didInstallEvent.event, getInstalled: () => Promise.resolve([extension, aLocalExtension('pub.b')]) } as IExtensionManagementService);
 		testObject = new TestExtensionEnablementService(instantiationService);
 		assert.ok(!testObject.isEnabled(extension));

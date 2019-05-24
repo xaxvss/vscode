@@ -67,8 +67,9 @@ suite('SearchModel', () => {
 		instantiationService = new TestInstantiationService();
 		instantiationService.stub(ITelemetryService, NullTelemetryService);
 		instantiationService.stub(IModelService, stubModelService(instantiationService));
-		instantiationService.stub(ISearchService, {});
-		instantiationService.stub(ISearchService, 'textSearch', Promise.resolve({ results: [] }));
+		instantiationService.stub(ISearchService, {
+			textSearch: () => Promise.resolve({ results: [] })
+		});
 	});
 
 	teardown(() => {
@@ -77,8 +78,8 @@ suite('SearchModel', () => {
 		});
 	});
 
-	function searchServiceWithResults(results: IFileMatch[], complete: ISearchComplete | null = null): ISearchService {
-		return <ISearchService>{
+	function searchServiceWithResults(results: IFileMatch[], complete: ISearchComplete | null = null): Partial<ISearchService> {
+		return {
 			textSearch(query: ISearchQuery, token?: CancellationToken, onProgress?: (result: ISearchProgressItem) => void): Promise<ISearchComplete> {
 				return new Promise(resolve => {
 					process.nextTick(() => {
@@ -90,8 +91,8 @@ suite('SearchModel', () => {
 		};
 	}
 
-	function searchServiceWithError(error: Error): ISearchService {
-		return <ISearchService>{
+	function searchServiceWithError(error: Error): Partial<ISearchService> {
+		return {
 			textSearch(query: ISearchQuery, token?: CancellationToken, onProgress?: (result: ISearchProgressItem) => void): Promise<ISearchComplete> {
 				return new Promise((resolve, reject) => {
 					reject(error);
@@ -100,8 +101,8 @@ suite('SearchModel', () => {
 		};
 	}
 
-	function canceleableSearchService(tokenSource: CancellationTokenSource): ISearchService {
-		return <ISearchService>{
+	function canceleableSearchService(tokenSource: CancellationTokenSource): Partial<ISearchService> {
+		return {
 			textSearch(query: ISearchQuery, token?: CancellationToken, onProgress?: (result: ISearchProgressItem) => void): Promise<ISearchComplete> {
 				if (token) {
 					token.onCancellationRequested(() => tokenSource.cancel());
@@ -168,7 +169,7 @@ suite('SearchModel', () => {
 		const target2 = sinon.spy();
 		stub(nullEvent, 'stop', target2);
 		const target1 = sinon.stub().returns(nullEvent);
-		instantiationService.stub(ITelemetryService, 'publicLog', target1);
+		instantiationService.stub(ITelemetryService, { publicLog: target1 });
 
 		instantiationService.stub(ISearchService, searchServiceWithResults([]));
 
@@ -187,7 +188,7 @@ suite('SearchModel', () => {
 		const target2 = sinon.spy();
 		stub(nullEvent, 'stop', target2);
 		const target1 = sinon.stub().returns(nullEvent);
-		instantiationService.stub(ITelemetryService, 'publicLog', target1);
+		instantiationService.stub(ITelemetryService, { publicLog: target1 });
 
 		instantiationService.stub(ISearchService, searchServiceWithResults(
 			[aRawMatch('file://c:/1', new TextSearchMatch('some preview', lineOneRange))],
@@ -211,7 +212,7 @@ suite('SearchModel', () => {
 		const target2 = sinon.spy();
 		stub(nullEvent, 'stop', target2);
 		const target1 = sinon.stub().returns(nullEvent);
-		instantiationService.stub(ITelemetryService, 'publicLog', target1);
+		instantiationService.stub(ITelemetryService, { publicLog: target1 });
 
 		instantiationService.stub(ISearchService, searchServiceWithError(new Error('error')));
 
@@ -231,10 +232,10 @@ suite('SearchModel', () => {
 		const target2 = sinon.spy();
 		stub(nullEvent, 'stop', target2);
 		const target1 = sinon.stub().returns(nullEvent);
-		instantiationService.stub(ITelemetryService, 'publicLog', target1);
+		instantiationService.stub(ITelemetryService, { publicLog: target1 });
 
 		const deferredPromise = new DeferredPromise<ISearchComplete>();
-		instantiationService.stub(ISearchService, 'textSearch', deferredPromise.p);
+		instantiationService.stub(ISearchService, { textSearch: () => deferredPromise.p });
 
 		const testObject = instantiationService.createInstance(SearchModel);
 		const result = testObject.search({ contentPattern: { pattern: 'somestring' }, type: 1, folderQueries });

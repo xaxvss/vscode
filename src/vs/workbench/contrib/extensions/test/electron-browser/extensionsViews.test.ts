@@ -15,8 +15,6 @@ import {
 	DidInstallExtensionEvent, DidUninstallExtensionEvent, InstallExtensionEvent, IExtensionIdentifier, IExtensionManagementServerService, EnablementState, ExtensionRecommendationReason, SortBy, IExtensionManagementServer
 } from 'vs/platform/extensionManagement/common/extensionManagement';
 import { getGalleryExtensionId } from 'vs/platform/extensionManagement/common/extensionManagementUtil';
-import { ExtensionManagementService } from 'vs/platform/extensionManagement/node/extensionManagementService';
-import { ExtensionTipsService } from 'vs/workbench/contrib/extensions/electron-browser/extensionTipsService';
 import { TestExtensionEnablementService } from 'vs/workbench/services/extensionManagement/test/electron-browser/extensionEnablementService.test';
 import { ExtensionGalleryService } from 'vs/platform/extensionManagement/node/extensionGalleryService';
 import { IURLService } from 'vs/platform/url/common/url';
@@ -83,11 +81,12 @@ suite('ExtensionsListView Tests', () => {
 		instantiationService.stub(ISharedProcessService, TestSharedProcessService);
 		instantiationService.stub(IExperimentService, ExperimentService);
 
-		instantiationService.stub(IExtensionManagementService, ExtensionManagementService);
-		instantiationService.stub(IExtensionManagementService, 'onInstallExtension', installEvent.event);
-		instantiationService.stub(IExtensionManagementService, 'onDidInstallExtension', didInstallEvent.event);
-		instantiationService.stub(IExtensionManagementService, 'onUninstallExtension', uninstallEvent.event);
-		instantiationService.stub(IExtensionManagementService, 'onDidUninstallExtension', didUninstallEvent.event);
+		instantiationService.stub(IExtensionManagementService, {
+			onInstallExtension: installEvent.event,
+			onDidInstallExtension: didInstallEvent.event,
+			onUninstallExtension: uninstallEvent.event,
+			onDidUninstallExtension: didUninstallEvent.event
+		});
 		instantiationService.stub(IRemoteAgentService, RemoteAgentService);
 
 		instantiationService.stub(IExtensionManagementServerService, new class extends ExtensionManagementServerService {
@@ -101,27 +100,24 @@ suite('ExtensionsListView Tests', () => {
 
 		instantiationService.stub(IExtensionEnablementService, new TestExtensionEnablementService(instantiationService));
 
-		instantiationService.stub(IExtensionTipsService, ExtensionTipsService);
-		instantiationService.stub(IURLService, URLService);
-
-		instantiationService.stubPromise(IExtensionTipsService, 'getWorkspaceRecommendations', [
-			{ extensionId: workspaceRecommendationA.identifier.id },
-			{ extensionId: workspaceRecommendationB.identifier.id }]);
-		instantiationService.stub(IExtensionTipsService, 'getFileBasedRecommendations', [
-			{ extensionId: fileBasedRecommendationA.identifier.id },
-			{ extensionId: fileBasedRecommendationB.identifier.id }]);
-		instantiationService.stubPromise(IExtensionTipsService, 'getOtherRecommendations', [
-			{ extensionId: otherRecommendationA.identifier.id }
-		]);
 		const reasons = {};
 		reasons[workspaceRecommendationA.identifier.id] = { reasonId: ExtensionRecommendationReason.Workspace };
 		reasons[workspaceRecommendationB.identifier.id] = { reasonId: ExtensionRecommendationReason.Workspace };
 		reasons[fileBasedRecommendationA.identifier.id] = { reasonId: ExtensionRecommendationReason.File };
 		reasons[fileBasedRecommendationB.identifier.id] = { reasonId: ExtensionRecommendationReason.File };
 		reasons[otherRecommendationA.identifier.id] = { reasonId: ExtensionRecommendationReason.Executable };
-
-		instantiationService.stub(IExtensionTipsService, 'getAllRecommendationsWithReason', reasons);
-
+		instantiationService.stub(IExtensionTipsService, {
+			getWorkspaceRecommendations: () => Promise.resolve([
+				{ extensionId: workspaceRecommendationA.identifier.id, sources: [] },
+				{ extensionId: workspaceRecommendationB.identifier.id, sources: [] }]),
+			getFileBasedRecommendations: () => [
+				{ extensionId: fileBasedRecommendationA.identifier.id, sources: [] },
+				{ extensionId: fileBasedRecommendationB.identifier.id, sources: [] }],
+			getOtherRecommendations: () => Promise.resolve([
+				{ extensionId: otherRecommendationA.identifier.id, sources: [] }]),
+			getAllRecommendationsWithReason: () => reasons
+		});
+		instantiationService.stub(IURLService, URLService);
 	});
 
 	setup(async () => {

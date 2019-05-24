@@ -18,8 +18,7 @@ import { IModelService } from 'vs/editor/common/services/modelService';
 import { ModelServiceImpl } from 'vs/editor/common/services/modelServiceImpl';
 import { ITextModelService } from 'vs/editor/common/services/resolverService';
 import { ITextResourcePropertiesService } from 'vs/editor/common/services/resourceConfiguration';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
-import { ConfigurationService } from 'vs/platform/configuration/node/configurationService';
+import { IConfigurationService, IConfigurationChangeEvent } from 'vs/platform/configuration/common/configuration';
 import { ContextKeyExpr, IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IFileService } from 'vs/platform/files/common/files';
@@ -44,6 +43,7 @@ import { TestBackupFileService, TestContextService, TestEditorGroupsService, Tes
 import { FileService } from 'vs/workbench/services/files/common/fileService';
 import { Schemas } from 'vs/base/common/network';
 import { DiskFileSystemProvider } from 'vs/workbench/services/files/node/diskFileSystemProvider';
+import { Emitter } from 'vs/base/common/event';
 
 interface Modifiers {
 	metaKey?: boolean;
@@ -65,11 +65,11 @@ suite('KeybindingsEditing', () => {
 
 			instantiationService = new TestInstantiationService();
 
-			instantiationService.stub(IEnvironmentService, <IEnvironmentService>{ appKeybindingsPath: keybindingsFile, appSettingsPath: path.join(testDir, 'settings.json') });
-			instantiationService.stub(IConfigurationService, ConfigurationService);
-			instantiationService.stub(IConfigurationService, 'getValue', { 'eol': '\n' });
-			instantiationService.stub(IConfigurationService, 'onDidUpdateConfiguration', () => { });
-			instantiationService.stub(IConfigurationService, 'onDidChangeConfiguration', () => { });
+			instantiationService.stub(IEnvironmentService, { appKeybindingsPath: keybindingsFile, appSettingsPath: path.join(testDir, 'settings.json') });
+			instantiationService.stub(IConfigurationService, {
+				getValue: () => { return { 'eol': '\n' }; },
+				onDidChangeConfiguration: new Emitter<IConfigurationChangeEvent>().event
+			});
 			instantiationService.stub(IWorkspaceContextService, new TestContextService());
 			const lifecycleService = new TestLifecycleService();
 			instantiationService.stub(ILifecycleService, lifecycleService);
@@ -123,7 +123,7 @@ suite('KeybindingsEditing', () => {
 	});
 
 	test('errors cases - dirty', () => {
-		instantiationService.stub(ITextFileService, 'isDirty', true);
+		instantiationService.stub(ITextFileService, { isDirty: () => true });
 		return testObject.editKeybinding(aResolvedKeybindingItem({ firstPart: { keyCode: KeyCode.Escape } }), 'alt+c', undefined)
 			.then(() => assert.fail('Should fail with dirty error'),
 				error => assert.equal(error.message, 'Unable to write because the keybindings configuration file is dirty. Please save it first and then try again.'));

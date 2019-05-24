@@ -42,8 +42,7 @@ suite('KeybindingsEditorModel test', () => {
 	setup(() => {
 		instantiationService = new TestInstantiationService();
 
-		instantiationService.stub(IKeybindingService, {});
-		instantiationService.stub(IExtensionService, {}, 'whenInstalledExtensionsRegistered', () => Promise.resolve(null));
+		instantiationService.stub(IExtensionService, { whenInstalledExtensionsRegistered: () => Promise.resolve(false) });
 
 		testObject = instantiationService.createInstance(KeybindingsEditorModel, OS);
 
@@ -110,8 +109,10 @@ suite('KeybindingsEditorModel test', () => {
 		registerCommandWithTitle(keybindings[3].command!, 'A Title');
 
 		const expected = [keybindings[3], keybindings[1], keybindings[0], keybindings[2]];
-		instantiationService.stub(IKeybindingService, 'getKeybindings', () => keybindings);
-		instantiationService.stub(IKeybindingService, 'getDefaultKeybindings', () => keybindings);
+		instantiationService.stub(IKeybindingService, {
+			getKeybindings: () => keybindings,
+			getDefaultKeybindings: () => keybindings
+		});
 
 		await testObject.resolve({});
 		const actuals = asResolvedKeybindingItems(testObject.fetch(''));
@@ -569,8 +570,10 @@ suite('KeybindingsEditorModel test', () => {
 	});
 
 	function prepareKeybindingService(...keybindingItems: ResolvedKeybindingItem[]): ResolvedKeybindingItem[] {
-		instantiationService.stub(IKeybindingService, 'getKeybindings', () => keybindingItems);
-		instantiationService.stub(IKeybindingService, 'getDefaultKeybindings', () => keybindingItems);
+		instantiationService.stub(IKeybindingService, {
+			getKeybindings: () => keybindingItems,
+			getDefaultKeybindings: () => keybindingItems
+		});
 		return keybindingItems;
 
 	}
