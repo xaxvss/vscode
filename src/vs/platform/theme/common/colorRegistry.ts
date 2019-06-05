@@ -177,7 +177,6 @@ export function getColorRegistry(): IColorRegistry {
 // ----- base colors
 
 export const foreground = registerColor('foreground', { dark: '#CCCCCC', light: '#616161', hc: '#FFFFFF' }, nls.localize('foreground', "Overall foreground color. This color is only used if not overridden by a component."));
-export const errorForeground = registerColor('errorForeground', { dark: '#F48771', light: '#A1260D', hc: '#F48771' }, nls.localize('errorForeground', "Overall foreground color for error messages. This color is only used if not overridden by a component."));
 export const descriptionForeground = registerColor('descriptionForeground', { light: '#717171', dark: transparent(foreground, 0.7), hc: transparent(foreground, 0.7) }, nls.localize('descriptionForeground', "Foreground color for description text providing additional information, for example for a label."));
 
 export const focusBorder = registerColor('focusBorder', { dark: Color.fromHex('#0E639C').transparent(0.8), light: Color.fromHex('#007ACC').transparent(0.4), hc: '#F38518' }, nls.localize('focusBorder', "Overall border color for focused elements. This color is only used if not overridden by a component."));
@@ -264,16 +263,20 @@ export const menuSelectionBackground = registerColor('menu.selectionBackground',
 export const menuSelectionBorder = registerColor('menu.selectionBorder', { dark: null, light: null, hc: activeContrastBorder }, nls.localize('menuSelectionBorder', "Border color of the selected menu item in menus."));
 export const menuSeparatorBackground = registerColor('menu.separatorBackground', { dark: '#BBBBBB', light: '#888888', hc: contrastBorder }, nls.localize('menuSeparatorBackground', "Color of a separator menu item in menus."));
 
-export const editorErrorForeground = registerColor('editorError.foreground', { dark: '#F48771', light: '#E51400', hc: null }, nls.localize('editorError.foreground', 'Error foreground color in the editor.'));
+export const errorForeground = registerColor('errorForeground', { dark: '#F48771', light: '#E51400', hc: '#F48771' }, nls.localize('errorForeground', 'Overall foreground color for error messages. This color is only used if not overridden by a component'));
+export const editorErrorForeground = registerColor('editorError.foreground', { dark: errorForeground, light: errorForeground, hc: null }, nls.localize('editorError.foreground', 'Foreground color of error squigglies in the editor.'));
 export const editorErrorBorder = registerColor('editorError.border', { dark: null, light: null, hc: Color.fromHex('#E47777').transparent(0.8) }, nls.localize('errorBorder', 'Border color of error boxes in the editor.'));
 
-export const editorWarningForeground = registerColor('editorWarning.foreground', { dark: '#FFCC00', light: '#E9A700', hc: null }, nls.localize('editorWarning.foreground', 'Warning foreground color in the editor.'));
+export const warningForeground = registerColor('warningForeground', { dark: '#FFCC00', light: '#E9A700', hc: 'FFCC00' }, nls.localize('warningIconForeground', 'Overall foreground color for warning messages. This color is only used if not overridden by a component'));
+export const editorWarningForeground = registerColor('editorWarning.foreground', { dark: warningForeground, light: warningForeground, hc: null }, nls.localize('editorWarning.foreground', 'Foreground color of warning squigglies in the editor.'));
 export const editorWarningBorder = registerColor('editorWarning.border', { dark: null, light: null, hc: Color.fromHex('#FFCC00').transparent(0.8) }, nls.localize('warningBorder', 'Border color of warning boxes in the editor.'));
 
-export const editorInfoForeground = registerColor('editorInfo.foreground', { dark: '#008000', light: '#008000', hc: null }, nls.localize('editorInfo.foreground', 'Info foreground color in the editor.'));
+export const infoForeground = registerColor('infoForeground', { dark: '#008000', light: '#008000', hc: '#008000' }, nls.localize('infoForeground', 'Overall foreground color for info messages. This color is only used if not overridden by a component'));
+export const editorInfoForeground = registerColor('editorInfo.foreground', { dark: infoForeground, light: infoForeground, hc: null }, nls.localize('editorInfo.foreground', 'Foreground color of info squigglies in the editor.'));
 export const editorInfoBorder = registerColor('editorInfo.border', { dark: null, light: null, hc: Color.fromHex('#71B771').transparent(0.8) }, nls.localize('infoBorder', 'Border color of info boxes in the editor.'));
 
-export const editorHintForeground = registerColor('editorHint.foreground', { dark: Color.fromHex('#eeeeee').transparent(0.7), light: '#6c6c6c', hc: null }, nls.localize('editorHint.foreground', 'Hint foreground color in the editor.'));
+export const hintForeground = registerColor('hintForeground', { dark: Color.fromHex('#eeeeee').transparent(0.7), light: '#6c6c6c', hc: Color.fromHex('#eeeeee').transparent(0.7) }, nls.localize('hintIconForeground', 'Overall foreground color for hint messages. This color is only used if not overridden by a component'));
+export const editorHintForeground = registerColor('editorHint.foreground', { dark: hintForeground, light: hintForeground, hc: null }, nls.localize('hintForeground', 'Foreground color of hint squigglies in the editor.'));
 export const editorHintBorder = registerColor('editorHint.border', { dark: null, light: null, hc: Color.fromHex('#eeeeee').transparent(0.8) }, nls.localize('hintBorder', 'Border color of hint boxes in the editor.'));
 
 /**
