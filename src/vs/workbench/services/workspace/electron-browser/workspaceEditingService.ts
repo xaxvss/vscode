@@ -73,7 +73,7 @@ export class WorkspaceEditingService implements IWorkspaceEditingService {
 		}
 
 		const workspaceIdentifier = this.getCurrentWorkspaceIdentifier();
-		if (!workspaceIdentifier || !isEqualOrParent(workspaceIdentifier.configPath, this.environmentService.untitledWorkspacesHome)) {
+		if (!workspaceIdentifier || !this.environmentService.untitledWorkspacesHome || !isEqualOrParent(workspaceIdentifier.configPath, this.environmentService.untitledWorkspacesHome)) {
 			return false; // only care about untitled workspaces to ask for saving
 		}
 

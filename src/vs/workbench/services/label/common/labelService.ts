@@ -178,7 +178,7 @@ export class LabelService implements ILabelService {
 
 		if (isWorkspaceIdentifier(workspace)) {
 			// Workspace: Untitled
-			if (isEqualOrParent(workspace.configPath, this.environmentService.untitledWorkspacesHome)) {
+			if (this.environmentService.untitledWorkspacesHome && isEqualOrParent(workspace.configPath, this.environmentService.untitledWorkspacesHome)) {
 				return localize('untitledWorkspace', "Untitled (Workspace)");
 			}
 

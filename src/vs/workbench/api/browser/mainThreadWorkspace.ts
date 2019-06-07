@@ -113,7 +113,7 @@ export class MainThreadWorkspace implements MainThreadWorkspaceShape {
 		}
 		return {
 			configuration: workspace.configuration || undefined,
-			isUntitled: workspace.configuration ? isEqualOrParent(workspace.configuration, this._environmentService.untitledWorkspacesHome) : false,
+			isUntitled: workspace.configuration && this._environmentService.untitledWorkspacesHome ? isEqualOrParent(workspace.configuration, this._environmentService.untitledWorkspacesHome) : false,
 			folders: workspace.folders,
 			id: workspace.id,
 			name: this._labelService.getWorkspaceLabel(workspace)

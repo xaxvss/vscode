@@ -277,7 +277,7 @@ export class FileDialogService implements IFileDialogService {
 }
 
 function isUntitledWorkspace(path: URI, environmentService: IWorkbenchEnvironmentService): boolean {
-	return resources.isEqualOrParent(path, environmentService.untitledWorkspacesHome);
+	return !!environmentService.untitledWorkspacesHome && resources.isEqualOrParent(path, environmentService.untitledWorkspacesHome);
 }
 
 registerSingleton(IFileDialogService, FileDialogService, true);

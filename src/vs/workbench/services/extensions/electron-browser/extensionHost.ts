@@ -400,7 +400,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 						configuration: withNullAsUndefined(workspace.configuration),
 						id: workspace.id,
 						name: this._labelService.getWorkspaceLabel(workspace),
-						isUntitled: workspace.configuration ? isEqualOrParent(workspace.configuration, this._environmentService.untitledWorkspacesHome) : false
+						isUntitled: workspace.configuration && this._environmentService.untitledWorkspacesHome ? isEqualOrParent(workspace.configuration, this._environmentService.untitledWorkspacesHome) : false
 					},
 					resolvedExtensions: [],
 					hostExtensions: [],

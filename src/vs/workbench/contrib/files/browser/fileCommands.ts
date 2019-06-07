@@ -88,7 +88,7 @@ export const openWindowCommand = (accessor: ServicesAccessor, urisToOpen: IURITo
 
 		// rewrite untitled: workspace URIs to the absolute path on disk
 		urisToOpen = urisToOpen.map(uriToOpen => {
-			if (isWorkspaceToOpen(uriToOpen) && uriToOpen.workspaceUri.scheme === Schemas.untitled) {
+			if (isWorkspaceToOpen(uriToOpen) && uriToOpen.workspaceUri.scheme === Schemas.untitled && environmentService.untitledWorkspacesHome) {
 				return {
 					workspaceUri: joinPath(environmentService.untitledWorkspacesHome, uriToOpen.workspaceUri.path, UNTITLED_WORKSPACE_NAME)
 				};

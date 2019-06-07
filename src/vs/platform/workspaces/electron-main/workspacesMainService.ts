@@ -39,7 +39,8 @@ export class WorkspacesMainService extends Disposable implements IWorkspacesMain
 	) {
 		super();
 
-		this.untitledWorkspacesHome = environmentService.untitledWorkspacesHome;
+		// Untitled workspace home exists always
+		this.untitledWorkspacesHome = environmentService.untitledWorkspacesHome!;
 	}
 
 	resolveLocalWorkspaceSync(uri: URI): IResolvedWorkspace | null {
@@ -100,7 +101,7 @@ export class WorkspacesMainService extends Disposable implements IWorkspacesMain
 	}
 
 	private isInsideWorkspacesHome(path: URI): boolean {
-		return isEqualOrParent(path, this.environmentService.untitledWorkspacesHome);
+		return isEqualOrParent(path, this.untitledWorkspacesHome);
 	}
 
 	async createUntitledWorkspace(folders?: IWorkspaceFolderCreationData[], remoteAuthority?: string): Promise<IWorkspaceIdentifier> {
