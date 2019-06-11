@@ -1,7 +1,7 @@
 {
   "name": "code-oss-dev",
   "version": "1.36.0",
-  "distro": "3974e1b8eebdf6dae9977fde7dac5ba53fe21403",
+  "distro": "b2ca77aa98d668bf7297a1de905b3e76a0fd5dd8",
   "author": {
     "name": "Microsoft Corporation"
   },
@@ -25,7 +25,8 @@
     "download-builtin-extensions": "node build/lib/builtInExtensions.js",
     "monaco-compile-check": "tsc -p src/tsconfig.monaco.json --noEmit",
     "strict-initialization-watch": "tsc --watch -p src/tsconfig.json --noEmit --strictPropertyInitialization",
-    "web": "node scripts/code-web.js"
+    "web": "node resources/server/bin-dev/code-web.js",
+    "install-server": "git fetch distro && git checkout distro/distro -- src/vs/server resources/server && git reset HEAD src/vs/server resources/server"
   },
   "dependencies": {
     "applicationinsights": "1.0.8",
@@ -41,10 +42,10 @@
     "native-is-elevated": "^0.2.1",
     "native-keymap": "1.2.5",
     "native-watchdog": "1.0.0",
-    "node-pty": "0.9.0-beta16",
+    "node-pty": "0.9.0-beta17",
     "onigasm-umd": "^2.2.2",
     "semver": "^5.5.0",
-    "spdlog": "0.8.1",
+    "spdlog": "^0.9.0",
     "sudo-prompt": "8.2.0",
     "v8-inspect-profiler": "^0.0.20",
     "vscode-chokidar": "1.6.5",
@@ -53,9 +54,9 @@
     "vscode-ripgrep": "^1.2.5",
     "vscode-sqlite3": "4.0.7",
     "vscode-textmate": "^4.1.1",
-    "xterm": "3.15.0-beta14",
-    "xterm-addon-search": "0.1.0-beta5",
-    "xterm-addon-web-links": "0.1.0-beta9",
+    "xterm": "3.15.0-beta34",
+    "xterm-addon-search": "0.1.0-beta6",
+    "xterm-addon-web-links": "0.1.0-beta10",
     "yauzl": "^2.9.2",
     "yazl": "^2.4.3"
   },

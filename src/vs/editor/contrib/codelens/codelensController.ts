@@ -5,7 +5,7 @@
 
 import { CancelablePromise, RunOnceScheduler, createCancelablePromise, disposableTimeout } from 'vs/base/common/async';
 import { onUnexpectedError, onUnexpectedExternalError } from 'vs/base/common/errors';
-import { toDisposable, Disposable, DisposableStore, dispose } from 'vs/base/common/lifecycle';
+import { dispose, toDisposable, DisposableStore } from 'vs/base/common/lifecycle';
 import { StableEditorScrollState } from 'vs/editor/browser/core/editorState';
 import * as editorBrowser from 'vs/editor/browser/editorBrowser';
 import { registerEditorContribution } from 'vs/editor/browser/editorExtensions';
@@ -13,19 +13,20 @@ import { IConfigurationChangedEvent } from 'vs/editor/common/config/editorOption
 import * as editorCommon from 'vs/editor/common/editorCommon';
 import { IModelDecorationsChangeAccessor } from 'vs/editor/common/model';
 import { CodeLensProviderRegistry, CodeLens } from 'vs/editor/common/modes';
-import { getCodeLensData, CodeLensModel, CodeLensItem } from 'vs/editor/contrib/codelens/codelens';
+import { CodeLensModel, getCodeLensData, CodeLensItem } from 'vs/editor/contrib/codelens/codelens';
 import { CodeLensWidget, CodeLensHelper } from 'vs/editor/contrib/codelens/codelensWidget';
 import { ICommandService } from 'vs/platform/commands/common/commands';
 import { INotificationService } from 'vs/platform/notification/common/notification';
 import { ICodeLensCache } from 'vs/editor/contrib/codelens/codeLensCache';
 
-export class CodeLensContribution extends Disposable implements editorCommon.IEditorContribution {
+export class CodeLensContribution implements editorCommon.IEditorContribution {
 
 	private static readonly ID: string = 'css.editor.codeLens';
 
 	private _isEnabled: boolean;
 
-	private readonly _localToDispose = this._register(new DisposableStore());
+	private readonly _globalToDispose = new DisposableStore();
+	private readonly _localToDispose = new DisposableStore();
 	private _lenses: CodeLensWidget[] = [];
 	private _currentFindCodeLensSymbolsPromise: CancelablePromise<CodeLensModel> | undefined;
 	private _currentCodeLensModel: CodeLensModel | undefined;
@@ -39,29 +40,24 @@ export class CodeLensContribution extends Disposable implements editorCommon.IEd
 		@INotificationService private readonly _notificationService: INotificationService,
 		@ICodeLensCache private readonly _codeLensCache: ICodeLensCache
 	) {
-		super();
 		this._isEnabled = this._editor.getConfiguration().contribInfo.codeLens;
 
-		this._lenses = [];
-		this._currentFindCodeLensSymbolsPromise = undefined;
-		this._modelChangeCounter = 0;
-
-		this._register(this._editor.onDidChangeModel(() => this._onModelChange()));
-		this._register(this._editor.onDidChangeModelLanguage(() => this._onModelChange()));
-		this._register(this._editor.onDidChangeConfiguration((e: IConfigurationChangedEvent) => {
+		this._globalToDispose.add(this._editor.onDidChangeModel(() => this._onModelChange()));
+		this._globalToDispose.add(this._editor.onDidChangeModelLanguage(() => this._onModelChange()));
+		this._globalToDispose.add(this._editor.onDidChangeConfiguration((e: IConfigurationChangedEvent) => {
 			let prevIsEnabled = this._isEnabled;
 			this._isEnabled = this._editor.getConfiguration().contribInfo.codeLens;
 			if (prevIsEnabled !== this._isEnabled) {
 				this._onModelChange();
 			}
 		}));
-		this._register(CodeLensProviderRegistry.onDidChange(this._onModelChange, this));
+		this._globalToDispose.add(CodeLensProviderRegistry.onDidChange(this._onModelChange, this));
 		this._onModelChange();
 	}
 
 	dispose(): void {
 		this._localDispose();
-		super.dispose();
+		this._globalToDispose.dispose();
 	}
 
 	private _localDispose(): void {

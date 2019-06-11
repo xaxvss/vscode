@@ -163,6 +163,7 @@ registerSingleton(IContextViewService, ContextViewService, true);
 // registerSingleton(IWorkspacesService, WorkspacesService);
 // registerSingleton(IMenubarService, MenubarService);
 // registerSingleton(IURLService, RelayURLService);
+registerSingleton(ISearchService, RemoteSearchService, true);
 registerSingleton(IHeapService, NullHeapService);
 registerSingleton(IContextMenuService, ContextMenuService);
 registerSingleton(IConfigurationResolverService, ConfigurationResolverService, true);
@@ -194,8 +195,11 @@ import 'vs/workbench/contrib/telemetry/browser/telemetry.contribution';
 // import 'vs/workbench/contrib/localizations/browser/localizations.contribution';
 
 // Preferences
-// import 'vs/workbench/contrib/preferences/electron-browser/preferences.contribution';
+import 'vs/workbench/contrib/preferences/browser/preferences.contribution';
 import 'vs/workbench/contrib/preferences/browser/keybindingsEditorContribution';
+import { IPreferencesSearchService } from 'vs/workbench/contrib/preferences/common/preferences';
+import { PreferencesSearchService } from 'vs/workbench/contrib/preferences/browser/preferencesSearch';
+registerSingleton(IPreferencesSearchService, PreferencesSearchService, true);
 
 // Logs
 import 'vs/workbench/contrib/logs/common/logs.contribution';
@@ -245,6 +249,8 @@ import 'vs/workbench/contrib/url/common/url.contribution';
 
 // Webview
 // import 'vs/workbench/contrib/webview/electron-browser/webview.contribution';
+registerSingleton(IWebviewService, NullWebviewService, true);
+registerSingleton(IWebviewEditorService, WebviewEditorService, true);
 
 // Extensions Management
 // import 'vs/workbench/contrib/extensions/electron-browser/extensions.contribution';
@@ -256,10 +262,11 @@ import 'vs/workbench/contrib/output/browser/output.contribution';
 import 'vs/workbench/contrib/output/browser/outputPanel';
 
 // Terminal
-// import 'vs/workbench/contrib/terminal/browser/terminal.contribution';
-// import 'vs/workbench/contrib/terminal/electron-browser/terminal.contribution';
-// import 'vs/workbench/contrib/terminal/browser/terminalQuickOpen';
-// import 'vs/workbench/contrib/terminal/browser/terminalPanel';
+import 'vs/workbench/contrib/terminal/browser/terminal.contribution';
+import 'vs/workbench/contrib/terminal/browser/terminalQuickOpen';
+import 'vs/workbench/contrib/terminal/browser/terminalPanel';
+registerSingleton(ITerminalNativeService, TerminalNativeService, true);
+registerSingleton(ITerminalInstanceService, TerminalInstanceService, true);
 
 // Relauncher
 // import 'vs/workbench/contrib/relauncher/electron-browser/relauncher.contribution';
@@ -318,6 +325,15 @@ import 'vs/workbench/contrib/welcome/overlay/browser/welcomeOverlay';
 
 // Outline
 import 'vs/workbench/contrib/outline/browser/outline.contribution';
+import { IWebviewService } from 'vs/workbench/contrib/webview/common/webview';
+import { NullWebviewService } from 'vs/workbench/contrib/webview/browser/webviewService';
+import { IWebviewEditorService, WebviewEditorService } from 'vs/workbench/contrib/webview/browser/webviewEditorService';
+import { ITerminalInstanceService } from 'vs/workbench/contrib/terminal/browser/terminal';
+import { ITerminalNativeService } from 'vs/workbench/contrib/terminal/common/terminal';
+import { TerminalNativeService } from 'vs/workbench/contrib/terminal/browser/terminalNativeService';
+import { TerminalInstanceService } from 'vs/workbench/contrib/terminal/browser/terminalInstanceService';
+import { ISearchService } from 'vs/workbench/services/search/common/search';
+import { RemoteSearchService } from 'vs/workbench/services/search/common/searchService';
 
 // Experiments
 // import 'vs/workbench/contrib/experiments/electron-browser/experiments.contribution';
