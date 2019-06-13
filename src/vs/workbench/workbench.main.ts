@@ -268,7 +268,7 @@ import 'vs/workbench/contrib/terminal/browser/terminalPanel';
 import 'vs/workbench/contrib/relauncher/electron-browser/relauncher.contribution';
 
 // Tasks
-import 'vs/workbench/contrib/tasks/electron-browser/task.contribution';
+import 'vs/workbench/contrib/tasks/browser/task.contribution';
 
 // Remote
 import 'vs/workbench/contrib/remote/electron-browser/remote.contribution';

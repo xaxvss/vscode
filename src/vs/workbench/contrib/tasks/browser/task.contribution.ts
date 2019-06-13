@@ -6,7 +6,7 @@
 import 'vs/css!../common/media/task.contribution';
 
 import * as nls from 'vs/nls';
-import * as semver from 'semver';
+// import * as semver from 'semver';
 
 import { QuickOpenHandler } from 'vs/workbench/contrib/tasks/browser/taskQuickOpen';
 import Severity from 'vs/base/common/severity';
@@ -77,9 +77,9 @@ import { ITaskService, ITaskProvider, ProblemMatcherRunOptions, CustomizationPro
 import { getTemplates as getTaskTemplates } from 'vs/workbench/contrib/tasks/common/taskTemplates';
 
 import * as TaskConfig from '../common/taskConfiguration';
-import { ProcessTaskSystem } from 'vs/workbench/contrib/tasks/node/processTaskSystem';
-import { TerminalTaskSystem } from './terminalTaskSystem';
-import { ProcessRunnerDetector } from 'vs/workbench/contrib/tasks/node/processRunnerDetector';
+// import { ProcessTaskSystem } from 'vs/workbench/contrib/tasks/node/processTaskSystem';
+import { TerminalTaskSystem } from 'vs/workbench/contrib/tasks/browser/terminalTaskSystem';
+// import { ProcessRunnerDetector } from 'vs/workbench/contrib/tasks/node/processRunnerDetector';
 import { QuickOpenActionContributor } from '../browser/quickOpen';
 
 import { IQuickInputService, IQuickPickItem, QuickPickInput } from 'vs/platform/quickinput/common/quickInput';
@@ -88,9 +88,10 @@ import { TaskDefinitionRegistry } from 'vs/workbench/contrib/tasks/common/taskDe
 import { IContextKey, IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 import { Extensions as WorkbenchExtensions, IWorkbenchContributionsRegistry, IWorkbenchContribution } from 'vs/workbench/common/contributions';
 import { IWorkbenchActionRegistry, Extensions as ActionExtensions } from 'vs/workbench/common/actions';
-import { RunAutomaticTasks, AllowAutomaticTaskRunning, DisallowAutomaticTaskRunning } from 'vs/workbench/contrib/tasks/electron-browser/runAutomaticTasks';
+import { RunAutomaticTasks, AllowAutomaticTaskRunning, DisallowAutomaticTaskRunning } from 'vs/workbench/contrib/tasks/common/runAutomaticTasks';
 
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
+import { ITerminalInstanceService } from 'vs/workbench/contrib/terminal/browser/terminal';
 
 let tasksCategory = nls.localize('tasksCategory', "Tasks");
 
@@ -311,7 +312,7 @@ class TaskService extends Disposable implements ITaskService {
 
 	private static nextHandle: number = 0;
 
-	private _configHasErrors: boolean;
+	// private _configHasErrors: boolean;
 	private _schemaVersion: JsonSchemaVersion;
 	private _executionEngine: ExecutionEngine;
 	private _workspaceFolders: IWorkspaceFolder[];
@@ -355,11 +356,12 @@ class TaskService extends Disposable implements ITaskService {
 		@INotificationService private readonly notificationService: INotificationService,
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@IWorkbenchEnvironmentService private readonly environmentService: IWorkbenchEnvironmentService,
-		@IWorkbenchLayoutService private readonly layoutService: IWorkbenchLayoutService
+		@IWorkbenchLayoutService private readonly layoutService: IWorkbenchLayoutService,
+		@ITerminalInstanceService private readonly terminalInstanceService: ITerminalInstanceService
 	) {
 		super();
 
-		this._configHasErrors = false;
+		// this._configHasErrors = false;
 		this._workspaceTasksPromise = undefined;
 		this._taskSystem = undefined;
 		this._taskSystemListener = undefined;
@@ -631,12 +633,12 @@ class TaskService extends Disposable implements ITaskService {
 	}
 
 	public tasks(filter?: TaskFilter): Promise<Task[]> {
-		let range = filter && filter.version ? filter.version : undefined;
-		let engine = this.executionEngine;
+		// let range = filter && filter.version ? filter.version : undefined;
+		// let engine = this.executionEngine;
 
-		if (range && ((semver.satisfies('0.1.0', range) && engine === ExecutionEngine.Terminal) || (semver.satisfies('2.0.0', range) && engine === ExecutionEngine.Process))) {
-			return Promise.resolve<Task[]>([]);
-		}
+		// if (range && ((semver.satisfies('0.1.0', range) && engine === ExecutionEngine.Terminal) || (semver.satisfies('2.0.0', range) && engine === ExecutionEngine.Process))) {
+		// 	return Promise.resolve<Task[]>([]);
+		// }
 		return this.getGroupedTasks().then((map) => {
 			if (!filter || !filter.type) {
 				return map.all();
@@ -1235,7 +1237,7 @@ class TaskService extends Disposable implements ITaskService {
 				this.terminalService, this.outputService, this.panelService, this.markerService,
 				this.modelService, this.configurationResolverService, this.telemetryService,
 				this.contextService, this.environmentService,
-				TaskService.OutputChannelId, this.fileService,
+				TaskService.OutputChannelId, this.fileService, this.terminalInstanceService,
 				(workspaceFolder: IWorkspaceFolder) => {
 					if (!workspaceFolder) {
 						return undefined;
@@ -1244,12 +1246,12 @@ class TaskService extends Disposable implements ITaskService {
 				}
 			);
 		} else {
-			let system = new ProcessTaskSystem(
-				this.markerService, this.modelService, this.telemetryService, this.outputService,
-				this.configurationResolverService, TaskService.OutputChannelId,
-			);
-			system.hasErrors(this._configHasErrors);
-			this._taskSystem = system;
+			// let system = new ProcessTaskSystem(
+			// 	this.markerService, this.modelService, this.telemetryService, this.outputService,
+			// 	this.configurationResolverService, TaskService.OutputChannelId,
+			// );
+			// system.hasErrors(this._configHasErrors);
+			// this._taskSystem = system;
 		}
 		this._taskSystemListener = this._taskSystem!.onDidStateChange((event) => {
 			if (this._taskSystem) {
@@ -1442,13 +1444,13 @@ class TaskService extends Disposable implements ITaskService {
 
 	private updateWorkspaceTasks(runSource: TaskRunSource = TaskRunSource.User): void {
 		this._workspaceTasksPromise = this.computeWorkspaceTasks(runSource).then(value => {
-			if (this.executionEngine === ExecutionEngine.Process && this._taskSystem instanceof ProcessTaskSystem) {
-				// We can only have a process engine if we have one folder.
-				value.forEach((value) => {
-					this._configHasErrors = value.hasErrors;
-					(this._taskSystem as ProcessTaskSystem).hasErrors(this._configHasErrors);
-				});
-			}
+			// if (this.executionEngine === ExecutionEngine.Process && this._taskSystem instanceof ProcessTaskSystem) {
+			// 	// We can only have a process engine if we have one folder.
+			// 	value.forEach((value) => {
+			// 		this._configHasErrors = value.hasErrors;
+			// 		(this._taskSystem as ProcessTaskSystem).hasErrors(this._configHasErrors);
+			// 	});
+			// }
 			return value;
 		});
 	}
@@ -1474,9 +1476,9 @@ class TaskService extends Disposable implements ITaskService {
 	}
 
 	private computeWorkspaceFolderTasks(workspaceFolder: IWorkspaceFolder, runSource: TaskRunSource = TaskRunSource.User): Promise<WorkspaceFolderTaskResult> {
-		return (this.executionEngine === ExecutionEngine.Process
-			? this.computeLegacyConfiguration(workspaceFolder)
-			: this.computeConfiguration(workspaceFolder)).
+		return (/*this.executionEngine === ExecutionEngine.Process
+			? this.computeLegacyConfiguration(workspaceFolder) :*/
+			this.computeConfiguration(workspaceFolder)).
 			then((workspaceFolderConfiguration) => {
 				if (!workspaceFolderConfiguration || !workspaceFolderConfiguration.config || workspaceFolderConfiguration.hasErrors) {
 					return Promise.resolve({ workspaceFolder, set: undefined, configurations: undefined, hasErrors: workspaceFolderConfiguration ? workspaceFolderConfiguration.hasErrors : false });
@@ -1513,52 +1515,52 @@ class TaskService extends Disposable implements ITaskService {
 		return Promise.resolve<WorkspaceFolderConfigurationResult>({ workspaceFolder, config, hasErrors: hasParseErrors });
 	}
 
-	private computeLegacyConfiguration(workspaceFolder: IWorkspaceFolder): Promise<WorkspaceFolderConfigurationResult> {
-		let { config, hasParseErrors } = this.getConfiguration(workspaceFolder);
-		if (hasParseErrors) {
-			return Promise.resolve({ workspaceFolder: workspaceFolder, hasErrors: true, config: undefined });
-		}
-		if (config) {
-			if (this.hasDetectorSupport(config)) {
-				return new ProcessRunnerDetector(workspaceFolder, this.fileService, this.contextService, this.configurationResolverService, config).detect(true).then((value): WorkspaceFolderConfigurationResult => {
-					let hasErrors = this.printStderr(value.stderr);
-					let detectedConfig = value.config;
-					if (!detectedConfig) {
-						return { workspaceFolder, config, hasErrors };
-					}
-					let result: TaskConfig.ExternalTaskRunnerConfiguration = Objects.deepClone(config)!;
-					let configuredTasks: IStringDictionary<TaskConfig.CustomTask> = Object.create(null);
-					const resultTasks = result.tasks;
-					if (!resultTasks) {
-						if (detectedConfig.tasks) {
-							result.tasks = detectedConfig.tasks;
-						}
-					} else {
-						resultTasks.forEach(task => {
-							if (task.taskName) {
-								configuredTasks[task.taskName] = task;
-							}
-						});
-						if (detectedConfig.tasks) {
-							detectedConfig.tasks.forEach((task) => {
-								if (task.taskName && !configuredTasks[task.taskName]) {
-									resultTasks.push(task);
-								}
-							});
-						}
-					}
-					return { workspaceFolder, config: result, hasErrors };
-				});
-			} else {
-				return Promise.resolve({ workspaceFolder, config, hasErrors: false });
-			}
-		} else {
-			return new ProcessRunnerDetector(workspaceFolder, this.fileService, this.contextService, this.configurationResolverService).detect(true).then((value) => {
-				let hasErrors = this.printStderr(value.stderr);
-				return { workspaceFolder, config: value.config!, hasErrors };
-			});
-		}
-	}
+	// private computeLegacyConfiguration(workspaceFolder: IWorkspaceFolder): Promise<WorkspaceFolderConfigurationResult> {
+	// 	let { config, hasParseErrors } = this.getConfiguration(workspaceFolder);
+	// 	if (hasParseErrors) {
+	// 		return Promise.resolve({ workspaceFolder: workspaceFolder, hasErrors: true, config: undefined });
+	// 	}
+	// 	if (config) {
+	// 		if (this.hasDetectorSupport(config)) {
+	// 			return new ProcessRunnerDetector(workspaceFolder, this.fileService, this.contextService, this.configurationResolverService, config).detect(true).then((value): WorkspaceFolderConfigurationResult => {
+	// 				let hasErrors = this.printStderr(value.stderr);
+	// 				let detectedConfig = value.config;
+	// 				if (!detectedConfig) {
+	// 					return { workspaceFolder, config, hasErrors };
+	// 				}
+	// 				let result: TaskConfig.ExternalTaskRunnerConfiguration = Objects.deepClone(config)!;
+	// 				let configuredTasks: IStringDictionary<TaskConfig.CustomTask> = Object.create(null);
+	// 				const resultTasks = result.tasks;
+	// 				if (!resultTasks) {
+	// 					if (detectedConfig.tasks) {
+	// 						result.tasks = detectedConfig.tasks;
+	// 					}
+	// 				} else {
+	// 					resultTasks.forEach(task => {
+	// 						if (task.taskName) {
+	// 							configuredTasks[task.taskName] = task;
+	// 						}
+	// 					});
+	// 					if (detectedConfig.tasks) {
+	// 						detectedConfig.tasks.forEach((task) => {
+	// 							if (task.taskName && !configuredTasks[task.taskName]) {
+	// 								resultTasks.push(task);
+	// 							}
+	// 						});
+	// 					}
+	// 				}
+	// 				return { workspaceFolder, config: result, hasErrors };
+	// 			});
+	// 		} else {
+	// 			return Promise.resolve({ workspaceFolder, config, hasErrors: false });
+	// 		}
+	// 	} else {
+	// 		return new ProcessRunnerDetector(workspaceFolder, this.fileService, this.contextService, this.configurationResolverService).detect(true).then((value) => {
+	// 			let hasErrors = this.printStderr(value.stderr);
+	// 			return { workspaceFolder, config: value.config!, hasErrors };
+	// 		});
+	// 	}
+	// }
 
 	private computeWorkspaceFolderSetup(): [IWorkspaceFolder[], IWorkspaceFolder[], ExecutionEngine, JsonSchemaVersion] {
 		let workspaceFolders: IWorkspaceFolder[] = [];
@@ -1628,17 +1630,17 @@ class TaskService extends Disposable implements ITaskService {
 		return { config: result, hasParseErrors: false };
 	}
 
-	private printStderr(stderr: string[]): boolean {
-		let result = false;
-		if (stderr && stderr.length > 0) {
-			stderr.forEach((line) => {
-				result = true;
-				this._outputChannel.append(line + '\n');
-			});
-			this.showOutput();
-		}
-		return result;
-	}
+	// private printStderr(stderr: string[]): boolean {
+	// 	let result = false;
+	// 	if (stderr && stderr.length > 0) {
+	// 		stderr.forEach((line) => {
+	// 			result = true;
+	// 			this._outputChannel.append(line + '\n');
+	// 		});
+	// 		this.showOutput();
+	// 	}
+	// 	return result;
+	// }
 
 	public inTerminal(): boolean {
 		if (this._taskSystem) {
@@ -1647,12 +1649,12 @@ class TaskService extends Disposable implements ITaskService {
 		return this.executionEngine === ExecutionEngine.Terminal;
 	}
 
-	private hasDetectorSupport(config: TaskConfig.ExternalTaskRunnerConfiguration): boolean {
-		if (!config.command || this.contextService.getWorkbenchState() === WorkbenchState.EMPTY) {
-			return false;
-		}
-		return ProcessRunnerDetector.supports(TaskConfig.CommandString.value(config.command));
-	}
+	// private hasDetectorSupport(config: TaskConfig.ExternalTaskRunnerConfiguration): boolean {
+	// 	if (!config.command || this.contextService.getWorkbenchState() === WorkbenchState.EMPTY) {
+	// 		return false;
+	// 	}
+	// 	return ProcessRunnerDetector.supports(TaskConfig.CommandString.value(config.command));
+	// }
 
 	public configureAction(): Action {
 		const thisCapture: TaskService = this;

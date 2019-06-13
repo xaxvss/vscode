@@ -9,6 +9,7 @@ import * as Objects from 'vs/base/common/objects';
 import * as Types from 'vs/base/common/types';
 import * as Platform from 'vs/base/common/platform';
 import * as Async from 'vs/base/common/async';
+import * as resources from 'vs/base/common/resources';
 import { IStringDictionary, values } from 'vs/base/common/collections';
 import { LinkedMap, Touch } from 'vs/base/common/map';
 import Severity from 'vs/base/common/severity';
@@ -16,7 +17,6 @@ import { Event, Emitter } from 'vs/base/common/event';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { isUNC } from 'vs/base/common/extpath';
 
-import { win32 } from 'vs/base/node/processes';
 import { IFileService } from 'vs/platform/files/common/files';
 import { IMarkerService, MarkerSeverity } from 'vs/platform/markers/common/markers';
 import { IWorkspaceContextService, WorkbenchState, IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
@@ -42,8 +42,9 @@ import { REMOTE_HOST_SCHEME } from 'vs/platform/remote/common/remoteHosts';
 import { URI } from 'vs/base/common/uri';
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
 import { Schemas } from 'vs/base/common/network';
-import { getWindowsBuildNumber, getDefaultShell } from 'vs/workbench/contrib/terminal/node/terminal';
+// import { getWindowsBuildNumber, getDefaultShell } from 'vs/workbench/contrib/terminal/node/terminal';
 import { IPanelService } from 'vs/workbench/services/panel/common/panelService';
+import { ITerminalInstanceService } from 'vs/workbench/contrib/terminal/browser/terminal';
 
 interface TerminalData {
 	terminal: ITerminalInstance;
@@ -158,6 +159,7 @@ export class TerminalTaskSystem implements ITaskSystem {
 	private lastTask: VerifiedTask;
 	private currentTask: VerifiedTask;
 	private isRerun: boolean;
+	private remoteAuthority: string | undefined;
 
 	private readonly _onDidStateChange: Emitter<TaskEvent>;
 
@@ -172,6 +174,7 @@ export class TerminalTaskSystem implements ITaskSystem {
 		private environmentService: IWorkbenchEnvironmentService,
 		private outputChannelId: string,
 		private fileService: IFileService,
+		private terminalInstaceService: ITerminalInstanceService,
 		taskSystemInfoResolver: TaskSystemInfoResolver,
 	) {
 
@@ -182,6 +185,7 @@ export class TerminalTaskSystem implements ITaskSystem {
 
 		this._onDidStateChange = new Emitter();
 		this.taskSystemInfoResolver = taskSystemInfoResolver;
+		this.remoteAuthority = this.environmentService.configuration.remoteAuthority;
 	}
 
 	public get onDidStateChange(): Event<TaskEvent> {
@@ -434,7 +438,7 @@ export class TerminalTaskSystem implements ITaskSystem {
 						if (isProcess) {
 							let processVarValue: string;
 							if (Platform.isWindows) {
-								processVarValue = await win32.findExecutable(
+								processVarValue = await this.findExecutable(
 									this.configurationResolverService.resolve(workspaceFolder, CommandString.value(task.command.name!)),
 									cwd ? this.configurationResolverService.resolve(workspaceFolder, cwd) : undefined,
 									envPath ? envPath.split(path.delimiter).map(p => this.configurationResolverService.resolve(workspaceFolder, p)) : undefined
@@ -759,7 +763,7 @@ export class TerminalTaskSystem implements ITaskSystem {
 		let originalCommand = task.command.name;
 		if (isShellCommand) {
 			shellLaunchConfig = { name: terminalName, executable: undefined, args: undefined, waitOnExit };
-			this.terminalService.configHelper.mergeDefaultShellPathAndArgs(shellLaunchConfig, getDefaultShell(platform), platform);
+			this.terminalService.configHelper.mergeDefaultShellPathAndArgs(shellLaunchConfig, this.terminalInstaceService.getDefaultShell(platform), platform);
 			let shellSpecified: boolean = false;
 			let shellOptions: ShellConfiguration | undefined = task.command.options && task.command.options.shell;
 			if (shellOptions) {
@@ -802,7 +806,7 @@ export class TerminalTaskSystem implements ITaskSystem {
 						toAdd.push('-c');
 					}
 				} else if (basename === 'wsl.exe') {
-					if (!shellSpecified && (getWindowsBuildNumber() >= 17763)) { // See https://github.com/Microsoft/vscode/issues/67855
+					if (!shellSpecified /*&& (getWindowsBuildNumber() >= 17763)*/) { // See https://github.com/Microsoft/vscode/issues/67855
 						toAdd.push('-e');
 					}
 				} else {
@@ -1361,5 +1365,52 @@ export class TerminalTaskSystem implements ITaskSystem {
 		if (outputChannel) {
 			outputChannel.append(output);
 		}
+	}
+
+	private async findExecutable(command: string, cwd?: string, paths?: string[]): Promise<string> {
+		// If we have an absolute path then we take it.
+		if (path.isAbsolute(command)) {
+			return command;
+		}
+		if (cwd === undefined) {
+			cwd = process.cwd();
+		}
+		const dir = path.dirname(command);
+		if (dir !== '.') {
+			// We have a directory and the directory is relative (see above). Make the path absolute
+			// to the current working directory.
+			return path.join(cwd, command);
+		}
+		if (paths === undefined && Types.isString(process.env.PATH)) {
+			paths = process.env.PATH.split(path.delimiter);
+		}
+		// No PATH environment. Make path absolute to the cwd.
+		if (paths === undefined || paths.length === 0) {
+			return path.join(cwd, command);
+		}
+		// We have a simple file name. We get the path variable from the env
+		// and try to find the executable on the path.
+		for (let pathEntry of paths) {
+			// The path entry is absolute.
+			let fullPath: string;
+			if (path.isAbsolute(pathEntry)) {
+				fullPath = path.join(pathEntry, command);
+			} else {
+				fullPath = path.join(cwd, pathEntry, command);
+			}
+
+			if (await this.fileService.exists(resources.toLocalResource(URI.from({ scheme: Schemas.file, path: fullPath }), this.remoteAuthority))) {
+				return fullPath;
+			}
+			let withExtension = fullPath + '.com';
+			if (await this.fileService.exists(resources.toLocalResource(URI.from({ scheme: Schemas.file, path: withExtension }), this.remoteAuthority))) {
+				return withExtension;
+			}
+			withExtension = fullPath + '.exe';
+			if (await this.fileService.exists(resources.toLocalResource(URI.from({ scheme: Schemas.file, path: withExtension }), this.remoteAuthority))) {
+				return withExtension;
+			}
+		}
+		return path.join(cwd, command);
 	}
 }
