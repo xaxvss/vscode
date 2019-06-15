@@ -534,6 +534,9 @@ export class TerminalInstance implements ITerminalInstance {
 			(<any>this._wrapperElement).xterm = this._xterm;
 
 			this._xterm.open(this._xtermElement);
+			this._terminalInstanceService.getXtermWebglConstructor().then(Addon => {
+				this._xterm.loadAddon(new Addon());
+			});
 			this._xterm.textarea.addEventListener('focus', () => this._onFocus.fire(this));
 			this._xterm.attachCustomKeyEventHandler((event: KeyboardEvent): boolean => {
 				// Disable all input if the terminal is exiting
