@@ -69,6 +69,7 @@ export interface ParsedArgs {
 	'driver-verbose'?: boolean;
 	remote?: string;
 	'disable-user-env-probe'?: boolean;
+	'enable-remote-auto-shutdown'?: boolean;
 }
 
 export const IEnvironmentService = createDecorator<IEnvironmentService>('environmentService');
@@ -99,6 +100,7 @@ export interface IEnvironmentService {
 	appSettingsHome: URI;
 	settingsResource: URI;
 	keybindingsResource: URI;
+	keyboardLayoutResource: URI;
 
 	machineSettingsHome: URI;
 	machineSettingsResource: URI;
@@ -151,4 +153,7 @@ export interface IEnvironmentService {
 
 	driverHandle?: string;
 	driverVerbose: boolean;
+
+	webviewEndpoint?: string;
+	readonly webviewResourceRoot: string;
 }

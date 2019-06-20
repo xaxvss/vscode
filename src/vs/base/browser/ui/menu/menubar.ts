@@ -18,11 +18,13 @@ import { KeyCode, ResolvedKeybinding } from 'vs/base/common/keyCodes';
 import { Disposable, dispose, IDisposable, DisposableStore } from 'vs/base/common/lifecycle';
 import { withNullAsUndefined } from 'vs/base/common/types';
 import { asArray } from 'vs/base/common/arrays';
+import { ScanCodeUtils, ScanCode } from 'vs/base/common/scanCode';
 
 const $ = DOM.$;
 
 export interface IMenuBarOptions {
 	enableMnemonics?: boolean;
+	disableAltFocus?: boolean;
 	visibility?: string;
 	getKeybinding?: (action: IAction) => ResolvedKeybinding | undefined;
 	alwaysOnMnemonics?: boolean;
@@ -776,6 +778,13 @@ export class MenuBar extends Disposable {
 			return;
 		}
 
+		// Prevent alt-key default if the menu is not hidden and we use alt to focus
+		if (modifierKeyStatus.event && !this.options.disableAltFocus) {
+			if (ScanCodeUtils.toEnum(modifierKeyStatus.event.code) === ScanCode.AltLeft) {
+				modifierKeyStatus.event.preventDefault();
+			}
+		}
+
 		// Alt key pressed while menu is focused. This should return focus away from the menubar
 		if (this.isFocused && modifierKeyStatus.lastKeyPressed === 'alt' && modifierKeyStatus.altKey) {
 			this.setUnfocusedState();
@@ -786,7 +795,7 @@ export class MenuBar extends Disposable {
 		// Clean alt key press and release
 		if (allModifiersReleased && modifierKeyStatus.lastKeyPressed === 'alt' && modifierKeyStatus.lastKeyReleased === 'alt') {
 			if (!this.awaitingAltRelease) {
-				if (!this.isFocused) {
+				if (!this.isFocused && !(this.options.disableAltFocus && this.options.visibility !== 'toggle')) {
 					this.mnemonicsInUse = true;
 					this.focusedMenu = { index: this.numMenusShown > 0 ? 0 : MenuBar.OVERFLOW_INDEX };
 					this.focusState = MenubarState.FOCUSED;
@@ -891,6 +900,7 @@ interface IModifierKeyStatus {
 	ctrlKey: boolean;
 	lastKeyPressed?: ModifierKey;
 	lastKeyReleased?: ModifierKey;
+	event?: KeyboardEvent;
 }
 
 
@@ -929,6 +939,7 @@ class ModifierKeyEmitter extends Emitter<IModifierKeyStatus> {
 			this._keyStatus.shiftKey = e.shiftKey;
 
 			if (this._keyStatus.lastKeyPressed) {
+				this._keyStatus.event = e;
 				this.fire(this._keyStatus);
 			}
 		}));
@@ -953,6 +964,7 @@ class ModifierKeyEmitter extends Emitter<IModifierKeyStatus> {
 			this._keyStatus.shiftKey = e.shiftKey;
 
 			if (this._keyStatus.lastKeyReleased) {
+				this._keyStatus.event = e;
 				this.fire(this._keyStatus);
 			}
 		}));
