@@ -4,26 +4,44 @@
  *--------------------------------------------------------------------------------------------*/
 
 import 'vs/css!./welcomeOverlay';
-import * as dom from 'vs/base/browser/dom';
-import { Registry } from 'vs/platform/registry/common/platform';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
-import { ShowAllCommandsAction } from 'vs/workbench/contrib/quickopen/browser/commandsHandler';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
-import { Parts, IWorkbenchLayoutService } from 'vs/workbench/services/layout/browser/layoutService';
-import { localize } from 'vs/nls';
-import { Action } from 'vs/base/common/actions';
-import { IWorkbenchActionRegistry, Extensions } from 'vs/workbench/common/actions';
-import { SyncActionDescriptor } from 'vs/platform/actions/common/actions';
+import { /*Parts,*/ IWorkbenchLayoutService } from 'vs/workbench/services/layout/browser/layoutService';
 import { ICommandService } from 'vs/platform/commands/common/commands';
 import { Disposable } from 'vs/base/common/lifecycle';
-import { RawContextKey, IContextKey, IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
-import { KeyCode } from 'vs/base/common/keyCodes';
-import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { IContextKey, IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
+
+// Importing types only
+import { localize } from 'vs/nls';
 import { registerThemingParticipant } from 'vs/platform/theme/common/themeService';
 import { textPreformatForeground, foreground } from 'vs/platform/theme/common/colorRegistry';
 import { Color } from 'vs/base/common/color';
+import { append, addStandardDisposableListener, addClass, removeClass, $ } from 'vs/base/browser/dom';
 
-const $ = dom.$;
+export function init(
+	_textPreformatForeground: typeof textPreformatForeground,
+	_foreground: typeof foreground,
+	_Color: typeof Color,
+	_registerThemingParticipant: typeof registerThemingParticipant,
+	_localize: typeof localize
+) {
+	// theming
+
+	_registerThemingParticipant((theme, collector) => {
+		const key = theme.getColor(_foreground);
+		if (key) {
+			collector.addRule(`.monaco-workbench > .welcomeOverlay > .key { color: ${key}; }`);
+		}
+		const backgroundColor = _Color.fromHex(theme.type === 'light' ? '#FFFFFF85' : '#00000085');
+		if (backgroundColor) {
+			collector.addRule(`.monaco-workbench > .welcomeOverlay { background: ${backgroundColor}; }`);
+		}
+		const shortcut = theme.getColor(_textPreformatForeground);
+		if (shortcut) {
+			collector.addRule(`.monaco-workbench > .welcomeOverlay > .key > .shortcut { color: ${shortcut}; }`);
+		}
+	});
+}
 
 interface Key {
 	id: string;
@@ -93,7 +111,7 @@ const keys: Key[] = [
 		id: 'commandPalette',
 		arrow: '&nwarr;',
 		label: localize('welcomeOverlay.commandPalette', "Find and run all commands"),
-		command: ShowAllCommandsAction.ID
+		command: 'workbench.action.showCommands'
 	},
 	{
 		id: 'notifications',
@@ -104,58 +122,18 @@ const keys: Key[] = [
 	}
 ];
 
-const OVERLAY_VISIBLE = new RawContextKey<boolean>('interfaceOverviewVisible', false);
-
-let welcomeOverlay: WelcomeOverlay;
-
-export class WelcomeOverlayAction extends Action {
-
-	public static readonly ID = 'workbench.action.showInterfaceOverview';
-	public static readonly LABEL = localize('welcomeOverlay', "User Interface Overview");
-
-	constructor(
-		id: string,
-		label: string,
-		@IInstantiationService private readonly instantiationService: IInstantiationService
-	) {
-		super(id, label);
-	}
-
-	public run(): Promise<void> {
-		if (!welcomeOverlay) {
-			welcomeOverlay = this.instantiationService.createInstance(WelcomeOverlay);
-		}
-		welcomeOverlay.show();
-		return Promise.resolve();
-	}
-}
-
-export class HideWelcomeOverlayAction extends Action {
-
-	public static readonly ID = 'workbench.action.hideInterfaceOverview';
-	public static readonly LABEL = localize('hideWelcomeOverlay', "Hide Interface Overview");
-
-	constructor(
-		id: string,
-		label: string
-	) {
-		super(id, label);
-	}
-
-	public run(): Promise<void> {
-		if (welcomeOverlay) {
-			welcomeOverlay.hide();
-		}
-		return Promise.resolve();
-	}
-}
-
-class WelcomeOverlay extends Disposable {
+export class WelcomeOverlay extends Disposable {
 
 	private _overlayVisible: IContextKey<boolean>;
 	private _overlay: HTMLElement;
 
 	constructor(
+		OVERLAY_VISIBLE: IContextKey<boolean>,
+		private readonly _append: typeof append,
+		private readonly _addStandardDisposableListener: typeof addStandardDisposableListener,
+		private readonly _addClass: typeof addClass,
+		private readonly _removeClass: typeof removeClass,
+		private readonly _$: typeof $,
 		@IWorkbenchLayoutService private readonly layoutService: IWorkbenchLayoutService,
 		@IEditorService private readonly editorService: IEditorService,
 		@ICommandService private readonly commandService: ICommandService,
@@ -163,41 +141,41 @@ class WelcomeOverlay extends Disposable {
 		@IKeybindingService private readonly keybindingService: IKeybindingService
 	) {
 		super();
-		this._overlayVisible = OVERLAY_VISIBLE.bindTo(this._contextKeyService);
+		this._overlayVisible = (<any>OVERLAY_VISIBLE).bindTo(this._contextKeyService);
 		this.create();
 	}
 
 	private create(): void {
-		const container = this.layoutService.getContainer(Parts.EDITOR_PART)!;
+		const container = this.layoutService.getContainer('workbench.parts.editor' as any)!;
 
 		const offset = this.layoutService.getTitleBarOffset();
-		this._overlay = dom.append(container.parentElement!, $('.welcomeOverlay'));
+		this._overlay = this._append(container.parentElement!, this._$('.welcomeOverlay'));
 		this._overlay.style.top = `${offset}px`;
 		this._overlay.style.height = `calc(100% - ${offset}px)`;
 		this._overlay.style.display = 'none';
 		this._overlay.tabIndex = -1;
 
-		this._register(dom.addStandardDisposableListener(this._overlay, 'click', () => this.hide()));
+		this._register(this._addStandardDisposableListener(this._overlay, 'click', () => this.hide()));
 		this.commandService.onWillExecuteCommand(() => this.hide());
 
-		dom.append(this._overlay, $('.commandPalettePlaceholder'));
+		this._append(this._overlay, this._$('.commandPalettePlaceholder'));
 
 		const editorOpen = !!this.editorService.visibleEditors.length;
 		keys.filter(key => !('withEditor' in key) || key.withEditor === editorOpen)
 			.forEach(({ id, arrow, label, command, arrowLast }) => {
-				const div = dom.append(this._overlay, $(`.key.${id}`));
+				const div = this._append(this._overlay, this._$(`.key.${id}`));
 				if (arrow && !arrowLast) {
-					dom.append(div, $('span.arrow')).innerHTML = arrow;
+					this._append(div, this._$('span.arrow')).innerHTML = arrow;
 				}
-				dom.append(div, $('span.label')).textContent = label;
+				this._append(div, this._$('span.label')).textContent = label;
 				if (command) {
 					const shortcut = this.keybindingService.lookupKeybinding(command);
 					if (shortcut) {
-						dom.append(div, $('span.shortcut')).textContent = shortcut.getLabel();
+						this._append(div, this._$('span.shortcut')).textContent = shortcut.getLabel();
 					}
 				}
 				if (arrow && arrowLast) {
-					dom.append(div, $('span.arrow')).innerHTML = arrow;
+					this._append(div, this._$('span.arrow')).innerHTML = arrow;
 				}
 			});
 	}
@@ -206,7 +184,7 @@ class WelcomeOverlay extends Disposable {
 		if (this._overlay.style.display !== 'block') {
 			this._overlay.style.display = 'block';
 			const workbench = document.querySelector('.monaco-workbench') as HTMLElement;
-			dom.addClass(workbench, 'blur-background');
+			this._addClass(workbench, 'blur-background');
 			this._overlayVisible.set(true);
 			this.updateProblemsKey();
 			this._overlay.focus();
@@ -233,31 +211,8 @@ class WelcomeOverlay extends Disposable {
 		if (this._overlay.style.display !== 'none') {
 			this._overlay.style.display = 'none';
 			const workbench = document.querySelector('.monaco-workbench') as HTMLElement;
-			dom.removeClass(workbench, 'blur-background');
+			this._removeClass(workbench, 'blur-background');
 			this._overlayVisible.reset();
 		}
 	}
 }
-
-Registry.as<IWorkbenchActionRegistry>(Extensions.WorkbenchActions)
-	.registerWorkbenchAction(new SyncActionDescriptor(WelcomeOverlayAction, WelcomeOverlayAction.ID, WelcomeOverlayAction.LABEL), 'Help: User Interface Overview', localize('help', "Help"));
-
-Registry.as<IWorkbenchActionRegistry>(Extensions.WorkbenchActions)
-	.registerWorkbenchAction(new SyncActionDescriptor(HideWelcomeOverlayAction, HideWelcomeOverlayAction.ID, HideWelcomeOverlayAction.LABEL, { primary: KeyCode.Escape }, OVERLAY_VISIBLE), 'Help: Hide Interface Overview', localize('help', "Help"));
-
-// theming
-
-registerThemingParticipant((theme, collector) => {
-	const key = theme.getColor(foreground);
-	if (key) {
-		collector.addRule(`.monaco-workbench > .welcomeOverlay > .key { color: ${key}; }`);
-	}
-	const backgroundColor = Color.fromHex(theme.type === 'light' ? '#FFFFFF85' : '#00000085');
-	if (backgroundColor) {
-		collector.addRule(`.monaco-workbench > .welcomeOverlay { background: ${backgroundColor}; }`);
-	}
-	const shortcut = theme.getColor(textPreformatForeground);
-	if (shortcut) {
-		collector.addRule(`.monaco-workbench > .welcomeOverlay > .key > .shortcut { color: ${shortcut}; }`);
-	}
-});
