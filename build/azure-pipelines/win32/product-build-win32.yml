@@ -69,6 +69,7 @@ steps:
     . build/azure-pipelines/win32/exec.ps1
     $ErrorActionPreference = "Stop"
     cd ..
+    git config --system core.longpaths true
     git clone https://github.com/microsoft/vscode-telemetry-extractor.git
     cd vscode-telemetry-extractor
     npm install
