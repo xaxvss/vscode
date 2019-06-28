@@ -79,7 +79,6 @@ steps:
     mkdir $env:BUILD_SOURCESDIRECTORY\.build\telemetry -ea 0
     mv declarations-resolved.json $env:BUILD_SOURCESDIRECTORY\.build\telemetry\telemetry-core.json
     mv declarations-extensions-resolved.json $env:BUILD_SOURCESDIRECTORY\.build\telemetry\telemetry-extensions.json
-    exit 1
   displayName: Extract Telemetry
 
 - powershell: |
