@@ -7,7 +7,6 @@ import * as path from 'vs/base/common/path';
 import * as objects from 'vs/base/common/objects';
 import * as nls from 'vs/nls';
 import { URI } from 'vs/base/common/uri';
-import { IStateService } from 'vs/platform/state/common/state';
 import { screen, BrowserWindow, systemPreferences, app, TouchBar, nativeImage, Rectangle, Display } from 'electron';
 import { IEnvironmentService, ParsedArgs } from 'vs/platform/environment/common/environment';
 import { ILogService } from 'vs/platform/log/common/log';
@@ -23,10 +22,9 @@ import { IBackupMainService } from 'vs/platform/backup/common/backup';
 import { ISerializableCommandAction } from 'vs/platform/actions/common/actions';
 import * as perf from 'vs/base/common/performance';
 import { resolveMarketplaceHeaders } from 'vs/platform/extensionManagement/node/extensionGalleryService';
-import { getBackgroundColor } from 'vs/code/electron-main/theme';
-import { RunOnceScheduler } from 'vs/base/common/async';
-import { withNullAsUndefined } from 'vs/base/common/types';
+import { IThemeMainService } from 'vs/platform/theme/electron-main/themeMainService';
 import { endsWith } from 'vs/base/common/strings';
+import { RunOnceScheduler } from 'vs/base/common/async';
 
 export interface IWindowCreationOptions {
 	state: IWindowState;
@@ -85,7 +83,7 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 		@ILogService private readonly logService: ILogService,
 		@IEnvironmentService private readonly environmentService: IEnvironmentService,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
-		@IStateService private readonly stateService: IStateService,
+		@IThemeMainService private readonly themeMainService: IThemeMainService,
 		@IWorkspacesMainService private readonly workspacesMainService: IWorkspacesMainService,
 		@IBackupMainService private readonly backupMainService: IBackupMainService,
 	) {
@@ -115,7 +113,8 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 	private createBrowserWindow(config: IWindowCreationOptions): void {
 
 		// Load window state
-		this.windowState = this.restoreWindowState(config.state);
+		const [state, hasMultipleDisplays] = this.restoreWindowState(config.state);
+		this.windowState = state;
 
 		// in case we are maximized or fullscreen, only show later after the call to maximize/fullscreen (see below)
 		const isFullscreenOrMaximized = (this.windowState.mode === WindowMode.Maximized || this.windowState.mode === WindowMode.Fullscreen);
@@ -125,7 +124,7 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 			height: this.windowState.height,
 			x: this.windowState.x,
 			y: this.windowState.y,
-			backgroundColor: getBackgroundColor(this.stateService),
+			backgroundColor: this.themeMainService.getBackgroundColor(),
 			minWidth: CodeWindow.MIN_WIDTH,
 			minHeight: CodeWindow.MIN_HEIGHT,
 			show: !isFullscreenOrMaximized,
@@ -157,7 +156,8 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 			}
 		}
 
-		if (isMacintosh && windowConfig && windowConfig.nativeTabs === true) {
+		const useNativeTabs = isMacintosh && windowConfig && windowConfig.nativeTabs === true;
+		if (useNativeTabs) {
 			options.tabbingIdentifier = product.nameShort; // this opts in to sierra tabs
 		}
 
@@ -176,6 +176,24 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 
 		if (isMacintosh && useCustomTitleStyle) {
 			this._win.setSheetOffset(22); // offset dialogs by the height of the custom title bar if we have any
+		}
+
+		// TODO@Ben (Electron 4 regression): when running on multiple displays where the target display
+		// to open the window has a larger resolution than the primary display, the window will not size
+		// correctly unless we set the bounds again (https://github.com/microsoft/vscode/issues/74872)
+		//
+		// However, when running with native tabs with multiple windows we cannot use this workaround
+		// because there is a potential that the new window will be added as native tab instead of being
+		// a window on its own. In that case calling setBounds() would cause https://github.com/microsoft/vscode/issues/75830
+		if (isMacintosh && hasMultipleDisplays && (!useNativeTabs || BrowserWindow.getAllWindows().length === 1)) {
+			if ([this.windowState.width, this.windowState.height, this.windowState.x, this.windowState.y].every(value => typeof value === 'number')) {
+				this._win.setBounds({
+					width: this.windowState.width!,
+					height: this.windowState.height!,
+					x: this.windowState.x!,
+					y: this.windowState.y!
+				});
+			}
 		}
 
 		if (isFullscreenOrMaximized) {
@@ -204,12 +222,6 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 	get isExtensionTestHost(): boolean {
 		return !!this.config.extensionTestsPath;
 	}
-
-	/*
-	get extensionDevelopmentPaths(): string | string[] | undefined {
-		return this.config.extensionDevelopmentPath;
-	}
-	*/
 
 	get config(): IWindowConfiguration {
 		return this.currentConfig;
@@ -687,40 +699,34 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 		return state;
 	}
 
-	private restoreWindowState(state?: IWindowState): IWindowState {
+	private restoreWindowState(state?: IWindowState): [IWindowState, boolean? /* has multiple displays */] {
+		let hasMultipleDisplays = false;
 		if (state) {
 			try {
-				state = withNullAsUndefined(this.validateWindowState(state));
+				const displays = screen.getAllDisplays();
+				hasMultipleDisplays = displays.length > 1;
+
+				state = this.validateWindowState(state, displays);
 			} catch (err) {
 				this.logService.warn(`Unexpected error validating window state: ${err}\n${err.stack}`); // somehow display API can be picky about the state to validate
 			}
 		}
 
-		if (!state) {
-			state = defaultWindowState();
-		}
-
-		return state;
+		return [state || defaultWindowState(), hasMultipleDisplays];
 	}
 
-	private validateWindowState(state: IWindowState): IWindowState | null {
-		if (!state) {
-			return null;
-		}
-
+	private validateWindowState(state: IWindowState, displays: Display[]): IWindowState | undefined {
 		if (typeof state.x !== 'number'
 			|| typeof state.y !== 'number'
 			|| typeof state.width !== 'number'
 			|| typeof state.height !== 'number'
 		) {
-			return null;
+			return undefined;
 		}
 
 		if (state.width <= 0 || state.height <= 0) {
-			return null;
+			return undefined;
 		}
-
-		const displays = screen.getAllDisplays();
 
 		// Single Monitor: be strict about x/y positioning
 		if (displays.length === 1) {
@@ -793,7 +799,7 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 			return state;
 		}
 
-		return null;
+		return undefined;
 	}
 
 	private getWorkingArea(display: Display): Rectangle | undefined {
@@ -863,16 +869,17 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 	}
 
 	private useNativeFullScreen(): boolean {
-		const windowConfig = this.configurationService.getValue<IWindowSettings>('window');
-		if (!windowConfig || typeof windowConfig.nativeFullScreen !== 'boolean') {
-			return true; // default
-		}
+		return true;
+		// const windowConfig = this.configurationService.getValue<IWindowSettings>('window');
+		// if (!windowConfig || typeof windowConfig.nativeFullScreen !== 'boolean') {
+		// 	return true; // default
+		// }
 
-		if (windowConfig.nativeTabs) {
-			return true; // https://github.com/electron/electron/issues/16142
-		}
+		// if (windowConfig.nativeTabs) {
+		// 	return true; // https://github.com/electron/electron/issues/16142
+		// }
 
-		return windowConfig.nativeFullScreen !== false;
+		// return windowConfig.nativeFullScreen !== false;
 	}
 
 	isMinimized(): boolean {

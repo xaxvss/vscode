@@ -3,7 +3,6 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { join } from 'vs/base/common/path';
 import * as nls from 'vs/nls';
 import { Event, Emitter } from 'vs/base/common/event';
 import { guessMimeTypes } from 'vs/base/common/mime';
@@ -26,9 +25,9 @@ import { ITextBufferFactory } from 'vs/editor/common/model';
 import { hash } from 'vs/base/common/hash';
 import { INotificationService } from 'vs/platform/notification/common/notification';
 import { isLinux } from 'vs/base/common/platform';
-import { IDisposable, toDisposable } from 'vs/base/common/lifecycle';
+import { toDisposable, MutableDisposable } from 'vs/base/common/lifecycle';
 import { ILogService } from 'vs/platform/log/common/log';
-import { isEqual, isEqualOrParent, extname, basename } from 'vs/base/common/resources';
+import { isEqual, isEqualOrParent, extname, basename, joinPath } from 'vs/base/common/resources';
 import { onUnexpectedError } from 'vs/base/common/errors';
 import { Schemas } from 'vs/base/common/network';
 
@@ -72,11 +71,11 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 	private bufferSavedVersionId: number;
 	private blockModelContentChange: boolean;
 
-	private lastResolvedDiskStat: IFileStatWithMetadata;
+	private lastResolvedFileStat: IFileStatWithMetadata;
 
 	private autoSaveAfterMillies?: number;
 	private autoSaveAfterMilliesEnabled: boolean;
-	private autoSaveDisposable?: IDisposable;
+	private readonly autoSaveDisposable = this._register(new MutableDisposable());
 
 	private saveSequentializer: SaveSequentializer;
 	private lastSaveAttemptTime: number;
@@ -144,7 +143,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		}
 	}
 
-	private onFileChanges(e: FileChangesEvent): void {
+	private async onFileChanges(e: FileChangesEvent): Promise<void> {
 		let fileEventImpactsModel = false;
 		let newInOrphanModeGuess: boolean | undefined;
 
@@ -167,28 +166,25 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		}
 
 		if (fileEventImpactsModel && this.inOrphanMode !== newInOrphanModeGuess) {
-			let checkOrphanedPromise: Promise<boolean>;
+			let newInOrphanModeValidated: boolean = false;
 			if (newInOrphanModeGuess) {
 				// We have received reports of users seeing delete events even though the file still
 				// exists (network shares issue: https://github.com/Microsoft/vscode/issues/13665).
 				// Since we do not want to mark the model as orphaned, we have to check if the
 				// file is really gone and not just a faulty file event.
-				checkOrphanedPromise = timeout(100).then(() => {
-					if (this.disposed) {
-						return true;
-					}
+				await timeout(100);
 
-					return this.fileService.exists(this.resource).then(exists => !exists);
-				});
-			} else {
-				checkOrphanedPromise = Promise.resolve(false);
+				if (this.disposed) {
+					newInOrphanModeValidated = true;
+				} else {
+					const exists = await this.fileService.exists(this.resource);
+					newInOrphanModeValidated = !exists;
+				}
 			}
 
-			checkOrphanedPromise.then(newInOrphanModeValidated => {
-				if (this.inOrphanMode !== newInOrphanModeValidated && !this.disposed) {
-					this.setOrphaned(newInOrphanModeValidated);
-				}
-			});
+			if (this.inOrphanMode !== newInOrphanModeValidated && !this.disposed) {
+				this.setOrphaned(newInOrphanModeValidated);
+			}
 		}
 	}
 
@@ -228,51 +224,45 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 
 			// Only fill in model metadata if resource matches
 			let meta: IBackupMetaData | undefined = undefined;
-			if (isEqual(target, this.resource) && this.lastResolvedDiskStat) {
+			if (isEqual(target, this.resource) && this.lastResolvedFileStat) {
 				meta = {
-					mtime: this.lastResolvedDiskStat.mtime,
-					size: this.lastResolvedDiskStat.size,
-					etag: this.lastResolvedDiskStat.etag,
+					mtime: this.lastResolvedFileStat.mtime,
+					size: this.lastResolvedFileStat.size,
+					etag: this.lastResolvedFileStat.etag,
 					orphaned: this.inOrphanMode
 				};
 			}
 
 			return this.backupFileService.backupResource<IBackupMetaData>(target, this.createSnapshot(), this.versionId, meta);
 		}
-
-		return Promise.resolve();
 	}
 
 	async revert(soft?: boolean): Promise<void> {
 		if (!this.isResolved()) {
-			return Promise.resolve(undefined);
+			return;
 		}
 
 		// Cancel any running auto-save
-		this.cancelPendingAutoSave();
+		this.autoSaveDisposable.clear();
 
 		// Unset flags
 		const undo = this.setDirty(false);
 
-		let loadPromise: Promise<unknown>;
-		if (soft) {
-			loadPromise = Promise.resolve();
-		} else {
-			loadPromise = this.load({ forceReadFromDisk: true });
+		// Force read from disk unless reverting soft
+		if (!soft) {
+			try {
+				await this.load({ forceReadFromDisk: true });
+			} catch (error) {
+
+				// Set flags back to previous values, we are still dirty if revert failed
+				undo();
+
+				throw error;
+			}
 		}
 
-		try {
-			await loadPromise;
-
-			// Emit file change event
-			this._onDidStateChange.fire(StateChange.REVERTED);
-		} catch (error) {
-
-			// Set flags back to previous values, we are still dirty if revert failed
-			undo();
-
-			return Promise.reject(error);
-		}
+		// Emit file change event
+		this._onDidStateChange.fire(StateChange.REVERTED);
 	}
 
 	async load(options?: ILoadOptions): Promise<ITextFileEditorModel> {
@@ -345,8 +335,8 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		let etag: string | undefined;
 		if (forceReadFromDisk) {
 			etag = ETAG_DISABLED; // disable ETag if we enforce to read from disk
-		} else if (this.lastResolvedDiskStat) {
-			etag = this.lastResolvedDiskStat.etag; // otherwise respect etag to support caching
+		} else if (this.lastResolvedFileStat) {
+			etag = this.lastResolvedFileStat.etag; // otherwise respect etag to support caching
 		}
 
 		// Ensure to track the versionId before doing a long running operation
@@ -402,7 +392,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		this.logService.trace('load() - resolved content', this.resource);
 
 		// Update our resolved disk stat model
-		this.updateLastResolvedDiskStat({
+		this.updateLastResolvedFileStat({
 			resource: this.resource,
 			name: content.name,
 			mtime: content.mtime,
@@ -577,7 +567,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		this.logService.trace(`doAutoSave() - enter for versionId ${versionId}`, this.resource);
 
 		// Cancel any currently running auto saves to make this the one that succeeds
-		this.cancelPendingAutoSave();
+		this.autoSaveDisposable.clear();
 
 		// Create new save timer and store it for disposal as needed
 		const handle = setTimeout(() => {
@@ -588,25 +578,18 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 			}
 		}, this.autoSaveAfterMillies);
 
-		this.autoSaveDisposable = toDisposable(() => clearTimeout(handle));
+		this.autoSaveDisposable.value = toDisposable(() => clearTimeout(handle));
 	}
 
-	private cancelPendingAutoSave(): void {
-		if (this.autoSaveDisposable) {
-			this.autoSaveDisposable.dispose();
-			this.autoSaveDisposable = undefined;
-		}
-	}
-
-	save(options: ISaveOptions = Object.create(null)): Promise<void> {
+	async save(options: ISaveOptions = Object.create(null)): Promise<void> {
 		if (!this.isResolved()) {
-			return Promise.resolve(undefined);
+			return;
 		}
 
 		this.logService.trace('save() - enter', this.resource);
 
 		// Cancel any currently running auto saves to make this the one that succeeds
-		this.cancelPendingAutoSave();
+		this.autoSaveDisposable.clear();
 
 		return this.doSave(this.versionId, options);
 	}
@@ -626,7 +609,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		if (this.saveSequentializer.hasPendingSave(versionId)) {
 			this.logService.trace(`doSave(${versionId}) - exit - found a pending save for versionId ${versionId}`, this.resource);
 
-			return this.saveSequentializer.pendingSave || Promise.resolve(undefined);
+			return this.saveSequentializer.pendingSave || Promise.resolve();
 		}
 
 		// Return early if not dirty (unless forced) or version changed meanwhile
@@ -639,7 +622,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		if ((!options.force && !this.dirty) || versionId !== this.versionId) {
 			this.logService.trace(`doSave(${versionId}) - exit - because not dirty and/or versionId is different (this.isDirty: ${this.dirty}, this.versionId: ${this.versionId})`, this.resource);
 
-			return Promise.resolve(undefined);
+			return Promise.resolve();
 		}
 
 		// Return if currently saving by storing this save request as the next save that should happen.
@@ -720,12 +703,12 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 			// Save to Disk
 			// mark the save operation as currently pending with the versionId (it might have changed from a save participant triggering)
 			this.logService.trace(`doSave(${versionId}) - before write()`, this.resource);
-			return this.saveSequentializer.setPending(newVersionId, this.textFileService.write(this.lastResolvedDiskStat.resource, this.createSnapshot(), {
+			return this.saveSequentializer.setPending(newVersionId, this.textFileService.write(this.lastResolvedFileStat.resource, this.createSnapshot(), {
 				overwriteReadonly: options.overwriteReadonly,
 				overwriteEncoding: options.overwriteEncoding,
-				mtime: this.lastResolvedDiskStat.mtime,
+				mtime: this.lastResolvedFileStat.mtime,
 				encoding: this.getEncoding(),
-				etag: this.lastResolvedDiskStat.etag,
+				etag: this.lastResolvedFileStat.etag,
 				writeElevated: options.writeElevated
 			}).then(stat => {
 				this.logService.trace(`doSave(${versionId}) - after write()`, this.resource);
@@ -739,7 +722,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 				}
 
 				// Updated resolved stat with updated stat
-				this.updateLastResolvedDiskStat(stat);
+				this.updateLastResolvedFileStat(stat);
 
 				// Cancel any content change event promises as they are no longer valid
 				this.contentChangeEventScheduler.cancel();
@@ -792,22 +775,22 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		}
 
 		// Check for global settings file
-		if (isEqual(this.resource, URI.file(this.environmentService.appSettingsPath), !isLinux)) {
+		if (isEqual(this.resource, this.environmentService.settingsResource, !isLinux)) {
 			return 'global-settings';
 		}
 
 		// Check for keybindings file
-		if (isEqual(this.resource, URI.file(this.environmentService.appKeybindingsPath), !isLinux)) {
+		if (isEqual(this.resource, this.environmentService.keybindingsResource, !isLinux)) {
 			return 'keybindings';
 		}
 
 		// Check for locale file
-		if (isEqual(this.resource, URI.file(join(this.environmentService.appSettingsHome, 'locale.json')), !isLinux)) {
+		if (isEqual(this.resource, joinPath(this.environmentService.appSettingsHome, 'locale.json'), !isLinux)) {
 			return 'locale';
 		}
 
 		// Check for snippets
-		if (isEqualOrParent(this.resource, URI.file(join(this.environmentService.appSettingsHome, 'snippets')))) {
+		if (isEqualOrParent(this.resource, joinPath(this.environmentService.appSettingsHome, 'snippets'))) {
 			return 'snippets';
 		}
 
@@ -830,7 +813,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		const fileName = basename(this.resource);
 		const path = this.resource.scheme === Schemas.file ? this.resource.fsPath : this.resource.path;
 		const telemetryData = {
-			mimeType: guessMimeTypes(path).join(', '),
+			mimeType: guessMimeTypes(this.resource).join(', '),
 			ext,
 			path: hash(path),
 			reason
@@ -857,14 +840,14 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 			return Promise.resolve();
 		}
 
-		return this.saveSequentializer.setPending(versionId, this.textFileService.write(this.lastResolvedDiskStat.resource, this.createSnapshot(), {
-			mtime: this.lastResolvedDiskStat.mtime,
+		return this.saveSequentializer.setPending(versionId, this.textFileService.write(this.lastResolvedFileStat.resource, this.createSnapshot(), {
+			mtime: this.lastResolvedFileStat.mtime,
 			encoding: this.getEncoding(),
-			etag: this.lastResolvedDiskStat.etag
+			etag: this.lastResolvedFileStat.etag
 		}).then(stat => {
 
 			// Updated resolved stat with updated stat since touching it might have changed mtime
-			this.updateLastResolvedDiskStat(stat);
+			this.updateLastResolvedFileStat(stat);
 
 			// Emit File Saved Event
 			this._onDidStateChange.fire(StateChange.SAVED);
@@ -907,18 +890,18 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		}
 	}
 
-	private updateLastResolvedDiskStat(newVersionOnDiskStat: IFileStatWithMetadata): void {
+	private updateLastResolvedFileStat(newFileStat: IFileStatWithMetadata): void {
 
 		// First resolve - just take
-		if (!this.lastResolvedDiskStat) {
-			this.lastResolvedDiskStat = newVersionOnDiskStat;
+		if (!this.lastResolvedFileStat) {
+			this.lastResolvedFileStat = newFileStat;
 		}
 
 		// Subsequent resolve - make sure that we only assign it if the mtime is equal or has advanced.
 		// This prevents race conditions from loading and saving. If a save comes in late after a revert
 		// was called, the mtime could be out of sync.
-		else if (this.lastResolvedDiskStat.mtime <= newVersionOnDiskStat.mtime) {
-			this.lastResolvedDiskStat = newVersionOnDiskStat;
+		else if (this.lastResolvedFileStat.mtime <= newFileStat.mtime) {
+			this.lastResolvedFileStat = newFileStat;
 		}
 	}
 
@@ -1027,7 +1010,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 	}
 
 	isReadonly(): boolean {
-		return !!(this.lastResolvedDiskStat && this.lastResolvedDiskStat.isReadonly);
+		return !!(this.lastResolvedFileStat && this.lastResolvedFileStat.isReadonly);
 	}
 
 	isDisposed(): boolean {
@@ -1039,7 +1022,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 	}
 
 	getStat(): IFileStatWithMetadata {
-		return this.lastResolvedDiskStat;
+		return this.lastResolvedFileStat;
 	}
 
 	dispose(): void {
@@ -1047,8 +1030,6 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		this.inConflictMode = false;
 		this.inOrphanMode = false;
 		this.inErrorMode = false;
-
-		this.cancelPendingAutoSave();
 
 		super.dispose();
 	}
