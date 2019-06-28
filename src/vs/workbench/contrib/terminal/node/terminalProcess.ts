@@ -14,6 +14,7 @@ import { IDisposable } from 'vs/base/common/lifecycle';
 import { IShellLaunchConfig, ITerminalChildProcess, SHELL_PATH_INVALID_EXIT_CODE } from 'vs/workbench/contrib/terminal/common/terminal';
 import { exec } from 'child_process';
 import { ILogService } from 'vs/platform/log/common/log';
+import { readdir, stat } from 'vs/base/node/pfs';
 
 export class TerminalProcess implements ITerminalChildProcess, IDisposable {
 	private _exitCode: number;
@@ -66,8 +67,16 @@ export class TerminalProcess implements ITerminalChildProcess, IDisposable {
 			conptyInheritCursor: true
 		};
 
-		fs.stat(shellLaunchConfig.executable!, (err) => {
-			if (err && err.code === 'ENOENT' && !this.checkIfExistsInPath(shellLaunchConfig.executable!)) {
+		stat(shellLaunchConfig.executable!).then(stat => {
+			if (!stat.isFile && !stat.isSymbolicLink) {
+				this._exitCode = SHELL_PATH_INVALID_EXIT_CODE;
+				this._queueProcessExit();
+				this._processStartupComplete = Promise.resolve(undefined);
+				return;
+			}
+			this.setupPtyProcess(shellLaunchConfig, options);
+		}, (err) => {
+			if (err.code !== 'ENOENT' && !this.checkIfExistsInPath(shellLaunchConfig.executable!)) {
 				this._exitCode = SHELL_PATH_INVALID_EXIT_CODE;
 				this._queueProcessExit();
 				this._processStartupComplete = Promise.resolve(undefined);
@@ -77,7 +86,7 @@ export class TerminalProcess implements ITerminalChildProcess, IDisposable {
 		});
 	}
 
-	private checkInsideDirRecursively(execPath: string, executable: string): void {
+	private async checkInsideDirRecursively(execPath: string, executable: string): Promise<void> {
 		try {
 			fs.readdirSync(execPath).forEach((file) => {
 				const pathToFile = path.join(execPath, file);
