@@ -62,6 +62,9 @@ const nodeCachedDataDir = getNodeCachedDir();
 // Configure command line switches
 configureCommandlineSwitches(args);
 
+
+require('electron').protocol.registerStandardSchemes(['vscode-webview'], true);
+
 // Load our code once ready
 app.once('ready', function () {
 	if (args['trace']) {
