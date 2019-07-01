@@ -4,8 +4,8 @@
 	"description": "%description%",
 	"version": "1.0.0",
 	"icon": "icon.png",
-  "publisher": "vscode",
-  "enableProposedApi": true,
+	"publisher": "vscode",
+	"enableProposedApi": true,
 	"license": "MIT",
 	"aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
 	"engines": {
@@ -321,7 +321,6 @@
 		"mocha-multi-reporters": "^1.1.7",
 		"ts-loader": "^4.0.1",
 		"typescript": "^3.3.1",
-		"vscode": "^1.1.10",
 		"webpack": "^4.1.0",
 		"webpack-cli": "^2.0.10"
 	}
