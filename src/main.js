@@ -55,6 +55,9 @@ userDefinedLocale.then(locale => {
 const nodeCachedDataDir = getNodeCachedDir();
 configureCommandlineSwitches(args, nodeCachedDataDir);
 
+
+require('electron').protocol.registerStandardSchemes(['vscode-webview'], true);
+
 // Load our code once ready
 app.once('ready', function () {
 	if (args['trace']) {

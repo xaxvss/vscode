@@ -3,20 +3,19 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import { addClass, addDisposableListener } from 'vs/base/browser/dom';
 import { Emitter } from 'vs/base/common/event';
-import { URI } from 'vs/base/common/uri';
-import { Webview, WebviewContentOptions, WebviewOptions } from 'vs/workbench/contrib/webview/common/webview';
-import { IThemeService, ITheme } from 'vs/platform/theme/common/themeService';
-import { IEnvironmentService } from 'vs/platform/environment/common/environment';
-import { IFileService } from 'vs/platform/files/common/files';
 import { Disposable } from 'vs/base/common/lifecycle';
-import { areWebviewInputOptionsEqual } from 'vs/workbench/contrib/webview/browser/webviewEditorService';
-import { addDisposableListener, addClass } from 'vs/base/browser/dom';
-import { getWebviewThemeData } from 'vs/workbench/contrib/webview/common/themeing';
+import { URI } from 'vs/base/common/uri';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
-import { loadLocalResource } from 'vs/workbench/contrib/webview/common/resourceLoader';
-import { WebviewPortMappingManager } from 'vs/workbench/contrib/webview/common/portMapping';
+import { IFileService } from 'vs/platform/files/common/files';
 import { ITunnelService } from 'vs/platform/remote/common/tunnel';
+import { ITheme, IThemeService } from 'vs/platform/theme/common/themeService';
+import { areWebviewInputOptionsEqual } from 'vs/workbench/contrib/webview/browser/webviewEditorService';
+import { WebviewPortMappingManager } from 'vs/workbench/contrib/webview/common/portMapping';
+import { loadLocalResource } from 'vs/workbench/contrib/webview/common/resourceLoader';
+import { getWebviewThemeData } from 'vs/workbench/contrib/webview/common/themeing';
+import { Webview, WebviewContentOptions, WebviewOptions } from 'vs/workbench/contrib/webview/common/webview';
 
 interface WebviewContent {
 	readonly html: string;
@@ -37,18 +36,15 @@ export class IFrameWebview extends Disposable implements Webview {
 	private readonly _portMappingManager: WebviewPortMappingManager;
 
 	constructor(
+		private readonly webviewEndpoint: string,
 		private _options: WebviewOptions,
 		contentOptions: WebviewContentOptions,
 		@IThemeService themeService: IThemeService,
 		@ITunnelService tunnelService: ITunnelService,
-		@IEnvironmentService private readonly environmentService: IEnvironmentService,
 		@IFileService private readonly fileService: IFileService,
 		@IConfigurationService private readonly _configurationService: IConfigurationService,
 	) {
 		super();
-		if (typeof environmentService.webviewEndpoint !== 'string') {
-			throw new Error('To use iframe based webviews, you must configure `environmentService.webviewEndpoint`');
-		}
 
 		this._portMappingManager = this._register(new WebviewPortMappingManager(
 			this._options.extension ? this._options.extension.location : undefined,
@@ -66,7 +62,7 @@ export class IFrameWebview extends Disposable implements Webview {
 
 		this.element = document.createElement('iframe');
 		this.element.sandbox.add('allow-scripts', 'allow-same-origin');
-		this.element.setAttribute('src', `${environmentService.webviewEndpoint}?id=${this.id}`);
+		this.element.setAttribute('src', `${webviewEndpoint}?id=${this.id}`);
 		this.element.style.border = 'none';
 		this.element.style.width = '100%';
 		this.element.style.height = '100%';
@@ -174,7 +170,7 @@ export class IFrameWebview extends Disposable implements Webview {
 
 	private preprocessHtml(value: string): string {
 		return value.replace(/(["'])vscode-resource:([^\s'"]+?)(["'])/gi, (_, startQuote, path, endQuote) =>
-			`${startQuote}${this.environmentService.webviewEndpoint}/vscode-resource${path}${endQuote}`);
+			`${startQuote}${this.webviewEndpoint}/vscode-resource${path}${endQuote}`);
 	}
 
 	public update(html: string, options: WebviewContentOptions, retainContextWhenHidden: boolean) {

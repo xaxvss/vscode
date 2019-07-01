@@ -721,6 +721,28 @@ export class CodeApplication extends Disposable {
 			}
 		};
 
+		protocol.registerFileProtocol('vscode-webview', (request, callback) => {
+			try {
+				const uri = URI.parse(request.url);
+				const validPaths = new Map([
+					['/', 'index.html'],
+					['/fake.html', 'fake.html'],
+					['/main.js', 'main.js'],
+					['/host.js', 'host.js'],
+					['/service-worker.js', 'service-worker.js'],
+				]);
+				const entry = validPaths.get(uri.path);
+				if (typeof entry === 'string') {
+					const url = require.toUrl(`vs/workbench/contrib/webview/browser/pre/${entry}`);
+					return callback(url.replace('file://', ''));
+				}
+			} catch {
+				// noop
+			}
+			callback({ error: -10 /* ACCESS_DENIED - https://cs.chromium.org/chromium/src/net/base/net_error_list.h?l=32 */ });
+		});
+
+
 		protocol.registerBufferProtocol(Schemas.vscodeRemote, async (request, callback) => {
 			if (request.method !== 'GET') {
 				return callback(undefined);
