@@ -26,24 +26,77 @@ steps:
 
     git config user.email "vscode@microsoft.com"
     git config user.name "VSCode"
-    git remote add distro "https://github.com/$(VSCODE_MIXIN_REPO).git"
-    git fetch distro
-    git merge $(node -p "require('./package.json').distro")
-
-    yarn
-    yarn gulp mixin
-    yarn gulp hygiene
-    yarn monaco-compile-check
-    node build/azure-pipelines/common/installDistroDependencies.js
-    node build/azure-pipelines/common/installDistroDependencies.js remote
-    node build/lib/builtInExtensions.js
-  displayName: Prepare build
+  displayName: Prepare tooling
 
 - script: |
     set -e
+    git remote add distro "https://github.com/$(VSCODE_MIXIN_REPO).git"
+    git fetch distro
+    git merge $(node -p "require('./package.json').distro")
+  displayName: Merge distro
+
+- task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+  inputs:
+    keyfile: '.yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock'
+    targetfolder: '**/node_modules, !**/node_modules/**/node_modules'
+    vstsFeed: 'npm-vscode'
+
+- script: |
+    set -e
+    yarn --frozen-lockfile
+  displayName: Install dependencies
+  condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+
+- task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
+  inputs:
+    keyfile: '.yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock'
+    targetfolder: '**/node_modules, !**/node_modules/**/node_modules'
+    vstsFeed: 'npm-vscode'
+  condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+
+- script: |
+    set -e
+    yarn postinstall
+  displayName: Run postinstall scripts
+  condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
+
+- script: |
+    set -e
+    yarn gulp mixin
+  displayName: Mix in quality
+
+- script: |
+    set -e
+    yarn gulp hygiene
+    yarn monaco-compile-check
+  displayName: Run hygiene checks
+  condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'))
+
+- script: |
+    set -e
+    node build/azure-pipelines/common/installDistroDependencies.js
+    node build/azure-pipelines/common/installDistroDependencies.js remote
+    node build/lib/builtInExtensions.js
+  displayName: Install distro dependencies and extensions
+
+- script: |
+    set -e
+    ./build/azure-pipelines/common/extract-telemetry.sh
+  displayName: Extract Telemetry
+
+- script: |
+    set -e
+    yarn gulp compile-build
+    yarn gulp compile-extensions-build-legacy
+    yarn gulp compile-extensions-build
     VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+      yarn gulp vscode-darwin-ci
+    VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+      yarn gulp vscode-reh-darwin-ci
+    VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
+      yarn gulp vscode-web-darwin-ci
     AZURE_STORAGE_ACCESS_KEY="$(ticino-storage-key)" \
-    ./build/azure-pipelines/darwin/build.sh
+      yarn gulp upload-vscode-sourcemaps
   displayName: Build
 
 - script: |
@@ -52,11 +105,13 @@ steps:
     # APP_NAME="`ls $(agent.builddirectory)/VSCode-darwin | head -n 1`"
     # yarn smoketest -- --build "$(agent.builddirectory)/VSCode-darwin/$APP_NAME"
   displayName: Run unit tests
+  condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'))
 
 - script: |
     set -e
     ./scripts/test-integration.sh --build --tfs "Integration Tests"
   displayName: Run integration tests
+  condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'))
 
 - script: |
     set -e

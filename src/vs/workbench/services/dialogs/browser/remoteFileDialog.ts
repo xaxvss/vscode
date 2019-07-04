@@ -23,7 +23,7 @@ import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/
 import { IRemoteAgentService } from 'vs/workbench/services/remote/common/remoteAgentService';
 import { IContextKeyService, IContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { equalsIgnoreCase, format, startsWithIgnoreCase } from 'vs/base/common/strings';
-import { OpenLocalFileAction, OpenLocalFileFolderAction, OpenLocalFolderAction, SaveLocalFileAction } from 'vs/workbench/browser/actions/workspaceActions';
+import { OpenLocalFileCommand, OpenLocalFileFolderCommand, OpenLocalFolderCommand, SaveLocalFileCommand } from 'vs/workbench/browser/actions/workspaceActions';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IRemoteAgentEnvironment } from 'vs/platform/remote/common/remoteAgentEnvironment';
 import { isValidBasename } from 'vs/base/common/extpath';
@@ -217,9 +217,9 @@ export class RemoteFileDialog {
 				this.filePickBox.customLabel = nls.localize('remoteFileDialog.local', 'Show Local');
 				let action;
 				if (isSave) {
-					action = SaveLocalFileAction;
+					action = SaveLocalFileCommand;
 				} else {
-					action = this.allowFileSelection ? (this.allowFolderSelection ? OpenLocalFileFolderAction : OpenLocalFileAction) : OpenLocalFolderAction;
+					action = this.allowFileSelection ? (this.allowFolderSelection ? OpenLocalFileFolderCommand : OpenLocalFileCommand) : OpenLocalFolderCommand;
 				}
 				const keybinding = this.keybindingService.lookupKeybinding(action.ID);
 				if (keybinding) {
@@ -242,6 +242,9 @@ export class RemoteFileDialog {
 			this.filePickBox.items = [];
 
 			function doResolve(dialog: RemoteFileDialog, uri: URI | undefined) {
+				if (uri) {
+					uri = resources.removeTrailingPathSeparator(uri);
+				}
 				resolve(uri);
 				dialog.contextKey.set(false);
 				dialog.filePickBox.dispose();
@@ -328,6 +331,7 @@ export class RemoteFileDialog {
 							}
 						} else {
 							this.filePickBox.activeItems = [];
+							this.userEnteredPathSegment = '';
 						}
 					}
 				} catch {
@@ -366,7 +370,11 @@ export class RemoteFileDialog {
 	}
 
 	private constructFullUserPath(): string {
-		return this.pathAppend(this.currentFolder, this.userEnteredPathSegment);
+		if (equalsIgnoreCase(this.filePickBox.value.substr(0, this.userEnteredPathSegment.length), this.userEnteredPathSegment)) {
+			return this.pathFromUri(this.currentFolder);
+		} else {
+			return this.pathAppend(this.currentFolder, this.userEnteredPathSegment);
+		}
 	}
 
 	private filePickBoxValue(): URI {
@@ -380,7 +388,11 @@ export class RemoteFileDialog {
 		const relativePath = resources.relativePath(currentDisplayUri, directUri);
 		const isSameRoot = (this.filePickBox.value.length > 1 && currentPath.length > 1) ? equalsIgnoreCase(this.filePickBox.value.substr(0, 2), currentPath.substr(0, 2)) : false;
 		if (relativePath && isSameRoot) {
-			const path = resources.joinPath(this.currentFolder, relativePath);
+			let path = resources.joinPath(this.currentFolder, relativePath);
+			const directBasename = resources.basename(directUri);
+			if ((directBasename === '.') || (directBasename === '..')) {
+				path = this.remoteUriFrom(this.pathAppend(path, directBasename));
+			}
 			return resources.hasTrailingPathSeparator(directUri) ? resources.addTrailingPathSeparator(path) : path;
 		} else {
 			return directUri;
@@ -471,7 +483,7 @@ export class RemoteFileDialog {
 					} catch (e) {
 						// do nothing
 					}
-					if (statWithoutTrailing && statWithoutTrailing.isDirectory && (resources.basename(valueUri) !== '.')) {
+					if (statWithoutTrailing && statWithoutTrailing.isDirectory) {
 						await this.updateItems(inputUriDirname, false, resources.basename(valueUri));
 						this.badPath = undefined;
 						return UpdateResult.Updated;
@@ -489,11 +501,13 @@ export class RemoteFileDialog {
 		const userPath = this.constructFullUserPath();
 		if (equalsIgnoreCase(userPath, value.substring(0, userPath.length))) {
 			let hasMatch = false;
-			for (let i = 0; i < this.filePickBox.items.length; i++) {
-				const item = <FileQuickPickItem>this.filePickBox.items[i];
-				if (this.setAutoComplete(value, inputBasename, item)) {
-					hasMatch = true;
-					break;
+			if (inputBasename.length > this.userEnteredPathSegment.length) {
+				for (let i = 0; i < this.filePickBox.items.length; i++) {
+					const item = <FileQuickPickItem>this.filePickBox.items[i];
+					if (this.setAutoComplete(value, inputBasename, item)) {
+						hasMatch = true;
+						break;
+					}
 				}
 			}
 			if (!hasMatch) {
@@ -502,11 +516,7 @@ export class RemoteFileDialog {
 				this.filePickBox.activeItems = [];
 			}
 		} else {
-			if (!equalsIgnoreCase(inputBasename, resources.basename(this.currentFolder))) {
-				this.userEnteredPathSegment = inputBasename;
-			} else {
-				this.userEnteredPathSegment = '';
-			}
+			this.userEnteredPathSegment = inputBasename;
 			this.autoCompletePathSegment = '';
 		}
 	}
@@ -522,7 +532,7 @@ export class RemoteFileDialog {
 		// Either force the autocomplete, or the old value should be one smaller than the new value and match the new value.
 		if (itemBasename === '..') {
 			// Don't match on the up directory item ever.
-			this.userEnteredPathSegment = startingValue;
+			this.userEnteredPathSegment = '';
 			this.autoCompletePathSegment = '';
 			this.activeItem = quickPickItem;
 			if (force) {
@@ -683,7 +693,7 @@ export class RemoteFileDialog {
 		this.busy = true;
 		this.userEnteredPathSegment = trailing ? trailing : '';
 		this.autoCompletePathSegment = '';
-		const newValue = trailing ? this.pathFromUri(resources.joinPath(newFolder, trailing)) : this.pathFromUri(newFolder, true);
+		const newValue = trailing ? this.pathAppend(newFolder, trailing) : this.pathFromUri(newFolder, true);
 		this.currentFolder = resources.addTrailingPathSeparator(newFolder, this.separator);
 		return this.createItems(this.currentFolder).then(items => {
 			this.filePickBox.items = items;
@@ -722,7 +732,7 @@ export class RemoteFileDialog {
 	private pathAppend(uri: URI, additional: string): string {
 		if ((additional === '..') || (additional === '.')) {
 			const basePath = this.pathFromUri(uri);
-			return basePath + (this.endsWithSlash(basePath) ? '' : this.separator) + additional;
+			return basePath + this.separator + additional;
 		} else {
 			return this.pathFromUri(resources.joinPath(uri, additional));
 		}

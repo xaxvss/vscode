@@ -20,6 +20,7 @@ import 'vs/workbench/browser/web.main';
 
 import 'vs/workbench/browser/actions/layoutActions';
 import 'vs/workbench/browser/actions/windowActions';
+import 'vs/workbench/browser/actions/developerActions';
 import 'vs/workbench/browser/actions/listCommands';
 import 'vs/workbench/browser/actions/navigationActions';
 import 'vs/workbench/browser/parts/quickopen/quickOpenActions';
@@ -185,6 +186,9 @@ import 'vs/workbench/browser/parts/statusbar/statusbarPart';
 
 
 //#region --- workbench contributions
+
+// Resource Service Worker
+import 'vs/workbench/contrib/resources/browser/resourceServiceWorkerClient';
 
 // Workspace File Watching
 import 'vs/workbench/services/files/common/workspaceWatcher';

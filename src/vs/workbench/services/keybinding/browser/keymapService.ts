@@ -6,15 +6,14 @@
 import * as nls from 'vs/nls';
 import { Emitter, Event } from 'vs/base/common/event';
 import { Disposable, toDisposable, IDisposable, MutableDisposable } from 'vs/base/common/lifecycle';
-import { IKeymapService, IKeyboardLayoutInfo, IKeyboardMapping, IWindowsKeyboardMapping, IWindowsKeyboardLayoutInfo, IMacKeyboardLayoutInfo, ILinuxKeyboardLayoutInfo } from 'vs/workbench/services/keybinding/common/keymapService';
+import { IKeymapService, IKeyboardLayoutInfo, IKeyboardMapping, IWindowsKeyboardMapping, KeymapInfo, IRawMixedKeyboardMapping, getKeyboardLayoutId, IKeymapInfo } from 'vs/workbench/services/keybinding/common/keymapInfo';
 import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { DispatchConfig } from 'vs/workbench/services/keybinding/common/dispatchConfig';
 import { IKeyboardMapper, CachedKeyboardMapper } from 'vs/workbench/services/keybinding/common/keyboardMapper';
-import { OS, OperatingSystem, isMacintosh, isWindows, isLinux } from 'vs/base/common/platform';
+import { OS, OperatingSystem, isMacintosh, isWindows } from 'vs/base/common/platform';
 import { WindowsKeyboardMapper } from 'vs/workbench/services/keybinding/common/windowsKeyboardMapper';
 import { MacLinuxFallbackKeyboardMapper } from 'vs/workbench/services/keybinding/common/macLinuxFallbackKeyboardMapper';
 import { IKeyboardEvent } from 'vs/platform/keybinding/common/keybinding';
-import { KeyCodeUtils, KeyCode } from 'vs/base/common/keyCodes';
 import { IMacLinuxKeyboardMapping, MacLinuxKeyboardMapper } from 'vs/workbench/services/keybinding/common/macLinuxKeyboardMapper';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { URI } from 'vs/base/common/uri';
@@ -28,20 +27,25 @@ import { Registry } from 'vs/platform/registry/common/platform';
 import { Extensions as ConfigExtensions, IConfigurationRegistry, IConfigurationNode } from 'vs/platform/configuration/common/configurationRegistry';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { INavigatorWithKeyboard } from 'vs/workbench/services/keybinding/common/navigatorKeyboard';
-import { KeymapInfo } from 'vs/workbench/services/keybinding/common/keymapInfo';
+import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
+import { ICommandService } from 'vs/platform/commands/common/commands';
+import { StorageScope, IStorageService } from 'vs/platform/storage/common/storage';
 
-export class BrowserKeyboardMapperFactory {
-	public static readonly INSTANCE = new BrowserKeyboardMapperFactory();
+export class BrowserKeyboardMapperFactoryBase {
 	// keyboard mapper
-	private _initialized: boolean;
-	private _keyboardMapper: IKeyboardMapper | null;
+	protected _initialized: boolean;
+	protected _keyboardMapper: IKeyboardMapper | null;
 	private readonly _onDidChangeKeyboardMapper = new Emitter<void>();
 	public readonly onDidChangeKeyboardMapper: Event<void> = this._onDidChangeKeyboardMapper.event;
 
 	// keymap infos
-	private _keymapInfos: KeymapInfo[];
-	private _mru: KeymapInfo[];
+	protected _keymapInfos: KeymapInfo[];
+	protected _mru: KeymapInfo[];
 	private _activeKeymapInfo: KeymapInfo | null;
+
+	get activeKeymap(): KeymapInfo | null {
+		return this._activeKeymapInfo;
+	}
 
 	get keymapInfos(): KeymapInfo[] {
 		return this._keymapInfos;
@@ -67,26 +71,21 @@ export class BrowserKeyboardMapperFactory {
 		return this._keymapInfos.map(keymapInfo => keymapInfo.layout);
 	}
 
-	private constructor() {
+	protected constructor(
+		private _notificationService: INotificationService,
+		private _storageService: IStorageService,
+		private _commandService: ICommandService
+	) {
 		this._keyboardMapper = null;
 		this._initialized = false;
 		this._keymapInfos = [];
 		this._mru = [];
 		this._activeKeymapInfo = null;
 
-		const platform = isWindows ? 'win' : isMacintosh ? 'darwin' : 'linux';
-
-		import('vs/workbench/services/keybinding/browser/keyboardLayouts/layout.contribution.' + platform).then((m) => {
-			this._keymapInfos.push(...m.KeyboardLayoutContribution.INSTANCE.layoutInfos);
-			this._mru = this._keymapInfos;
-			this._initialized = true;
-			this.onKeyboardLayoutChanged();
-		});
-
 		if ((<INavigatorWithKeyboard>navigator).keyboard && (<INavigatorWithKeyboard>navigator).keyboard.addEventListener) {
 			(<INavigatorWithKeyboard>navigator).keyboard.addEventListener!('layoutchange', () => {
 				// Update user keyboard map settings
-				this._getBrowserKeyMapping().then((mapping: IKeyboardMapping) => {
+				this._getBrowserKeyMapping().then((mapping: IKeyboardMapping | null) => {
 					if (this.isKeyMappingActive(mapping)) {
 						return;
 					}
@@ -109,22 +108,114 @@ export class BrowserKeyboardMapperFactory {
 		this._keymapInfos.splice(index, 1);
 	}
 
-	getMatchedKeymapInfo(keyMapping: IKeyboardMapping): KeymapInfo | null {
+	getMatchedKeymapInfo(keyMapping: IKeyboardMapping | null): { result: KeymapInfo, score: number } | null {
+		if (!keyMapping) {
+			return null;
+		}
+
+		let usStandard = this.getUSStandardLayout();
+
+		if (usStandard) {
+			let maxScore = usStandard.getScore(keyMapping);
+			if (maxScore === 0) {
+				return {
+					result: usStandard,
+					score: 0
+				};
+			}
+
+			let result = usStandard;
+			for (let i = 0; i < this._mru.length; i++) {
+				let score = this._mru[i].getScore(keyMapping);
+				if (score > maxScore) {
+					if (score === 0) {
+						return {
+							result: this._mru[i],
+							score: 0
+						};
+					}
+
+					maxScore = score;
+					result = this._mru[i];
+				}
+			}
+
+			return {
+				result,
+				score: maxScore
+			};
+		}
+
 		for (let i = 0; i < this._mru.length; i++) {
 			if (this._mru[i].fuzzyEqual(keyMapping)) {
-				return this._mru[i];
+				return {
+					result: this._mru[i],
+					score: 0
+				};
 			}
 		}
 
 		return null;
 	}
 
-	isKeyMappingActive(keymap: IKeyboardMapping) {
-		return this._activeKeymapInfo && this._activeKeymapInfo.fuzzyEqual(keymap);
+	getUSStandardLayout() {
+		const usStandardLayouts = this._mru.filter(layout => layout.layout.isUSStandard);
+
+		if (usStandardLayouts.length) {
+			return usStandardLayouts[0];
+		}
+
+		return null;
 	}
 
-	setActiveKeyMapping(keymap: IKeyboardMapping) {
-		this._activeKeymapInfo = this.getMatchedKeymapInfo(keymap);
+	isKeyMappingActive(keymap: IKeyboardMapping | null) {
+		return this._activeKeymapInfo && keymap && this._activeKeymapInfo.fuzzyEqual(keymap);
+	}
+
+	setUSKeyboardLayout() {
+		this._activeKeymapInfo = this.getUSStandardLayout();
+	}
+
+	setActiveKeyMapping(keymap: IKeyboardMapping | null) {
+		let matchedKeyboardLayout = this.getMatchedKeymapInfo(keymap);
+		if (matchedKeyboardLayout) {
+			let score = matchedKeyboardLayout.score;
+
+			if (keymap && score < 0) {
+				const donotAskUpdateKey = 'missing.keyboardlayout.donotask';
+				if (this._storageService.getBoolean(donotAskUpdateKey, StorageScope.GLOBAL)) {
+					return;
+				}
+
+				// the keyboard layout doesn't actually match the key event or the keymap from chromium
+				this._notificationService.prompt(
+					Severity.Info,
+					nls.localize('missing.keyboardlayout', 'Fail to find matching keyboard layout'),
+					[{
+						label: nls.localize('keyboardLayoutMissing.configure', "Configure"),
+						run: () => this._commandService.executeCommand('workbench.action.openKeyboardLayoutPicker')
+					}, {
+						label: nls.localize('neverAgain', "Don't Show Again"),
+						isSecondary: true,
+						run: () => this._storageService.store(donotAskUpdateKey, true, StorageScope.GLOBAL)
+					}]
+				);
+
+				return;
+			}
+
+			if (!this._activeKeymapInfo) {
+				this._activeKeymapInfo = matchedKeyboardLayout.result;
+			} else if (keymap) {
+				if (matchedKeyboardLayout.result.getScore(keymap) > this._activeKeymapInfo.getScore(keymap)) {
+					this._activeKeymapInfo = matchedKeyboardLayout.result;
+				}
+			}
+		}
+
+		if (!this._activeKeymapInfo) {
+			this._activeKeymapInfo = this.getUSStandardLayout();
+		}
 
 		if (!this._activeKeymapInfo) {
 			return;
@@ -157,12 +248,12 @@ export class BrowserKeyboardMapperFactory {
 		this._updateKeyboardLayoutAsync(this._initialized);
 	}
 
-	private _updateKeyboardLayoutAsync(initialized: boolean) {
+	private _updateKeyboardLayoutAsync(initialized: boolean, keyboardEvent?: IKeyboardEvent) {
 		if (!initialized) {
 			return;
 		}
 
-		this._getBrowserKeyMapping().then(keyMap => {
+		this._getBrowserKeyMapping(keyboardEvent).then(keyMap => {
 			// might be false positive
 			if (this.isKeyMappingActive(keyMap)) {
 				return;
@@ -180,7 +271,6 @@ export class BrowserKeyboardMapperFactory {
 			return new MacLinuxFallbackKeyboardMapper(OS);
 		}
 		return this._keyboardMapper!;
-
 	}
 
 	public validateCurrentKeyboardMapping(keyboardEvent: IKeyboardEvent): void {
@@ -194,25 +284,11 @@ export class BrowserKeyboardMapperFactory {
 			return;
 		}
 
-		this._updateKeyboardLayoutAsync(true);
+		this._updateKeyboardLayoutAsync(true, keyboardEvent);
 	}
 
 	public setKeyboardLayout(layoutName: string) {
-		let allKeyboardLayouts = this.keymapInfos;
-		let matchedLayouts: KeymapInfo[] = [];
-		if (isWindows) {
-			matchedLayouts = allKeyboardLayouts.filter(layout => (<IWindowsKeyboardLayoutInfo>layout.layout).name === layoutName);
-		}
-
-		if (isMacintosh) {
-			// todo, probably we should use layout.id?
-			matchedLayouts = allKeyboardLayouts.filter(layout => (<IMacKeyboardLayoutInfo>layout.layout).lang === layoutName);
-		}
-
-		if (isLinux) {
-			// todo, probably we should use layout.id?
-			matchedLayouts = allKeyboardLayouts.filter(layout => (<ILinuxKeyboardLayoutInfo>layout.layout).layout === layoutName);
-		}
+		let matchedLayouts: KeymapInfo[] = this.keymapInfos.filter(keymapInfo => getKeyboardLayoutId(keymapInfo.layout) === layoutName);
 
 		if (matchedLayouts.length > 0) {
 			this.setActiveKeymapInfo(matchedLayouts[0]);
@@ -222,26 +298,13 @@ export class BrowserKeyboardMapperFactory {
 	private _setKeyboardData(keymapInfo: KeymapInfo): void {
 		this._initialized = true;
 
-		this._keyboardMapper = new CachedKeyboardMapper(BrowserKeyboardMapperFactory._createKeyboardMapper(keymapInfo.mapping));
+		this._keyboardMapper = new CachedKeyboardMapper(BrowserKeyboardMapperFactory._createKeyboardMapper(keymapInfo));
 		this._onDidChangeKeyboardMapper.fire();
 	}
 
-	private static _isUSStandard(rawMapping: IKeyboardMapping): boolean {
-		for (let key in rawMapping) {
-			let str = rawMapping[key].value;
-			let keyCode = KeyCodeUtils.fromString(str);
-			let usKeyCode = US_SCANCODE_MAP[key];
-
-			if (keyCode !== usKeyCode) {
-				return false;
-			}
-
-		}
-		return true;
-	}
-
-	private static _createKeyboardMapper(rawMapping: IKeyboardMapping): IKeyboardMapper {
-		const isUSStandard = BrowserKeyboardMapperFactory._isUSStandard(rawMapping);
+	private static _createKeyboardMapper(keymapInfo: KeymapInfo): IKeyboardMapper {
+		let rawMapping = keymapInfo.mapping;
+		const isUSStandard = !!keymapInfo.layout.isUSStandard;
 		if (OS === OperatingSystem.Windows) {
 			return new WindowsKeyboardMapper(isUSStandard, <IWindowsKeyboardMapping>rawMapping);
 		}
@@ -308,7 +371,7 @@ export class BrowserKeyboardMapperFactory {
 		return true;
 	}
 
-	private async _getBrowserKeyMapping() {
+	private async _getBrowserKeyMapping(keyboardEvent?: IKeyboardEvent): Promise<IRawMixedKeyboardMapping | null> {
 		if ((navigator as any).keyboard) {
 			try {
 				return (navigator as any).keyboard.getLayoutMap().then((e: any) => {
@@ -322,81 +385,59 @@ export class BrowserKeyboardMapperFactory {
 						};
 					}
 
-					const matchedKeyboardLayout = this.getMatchedKeymapInfo(ret);
+					return ret;
 
-					if (matchedKeyboardLayout) {
-						return matchedKeyboardLayout.mapping;
-					}
+					// const matchedKeyboardLayout = this.getMatchedKeymapInfo(ret);
 
-					return {};
+					// if (matchedKeyboardLayout) {
+					// 	return matchedKeyboardLayout.result.mapping;
+					// }
+
+					// return null;
 				});
 			} catch {
 				// getLayoutMap can throw if invoked from a nested browsing context
 			}
+		} else if (keyboardEvent && !keyboardEvent.shiftKey && !keyboardEvent.altKey && !keyboardEvent.metaKey && !keyboardEvent.metaKey) {
+			let ret: IKeyboardMapping = {};
+			const standardKeyboardEvent = keyboardEvent as StandardKeyboardEvent;
+			ret[standardKeyboardEvent.browserEvent.code] = {
+				'value': standardKeyboardEvent.browserEvent.key,
+				'withShift': '',
+				'withAltGr': '',
+				'withShiftAltGr': ''
+			};
+
+			const matchedKeyboardLayout = this.getMatchedKeymapInfo(ret);
+
+			if (matchedKeyboardLayout) {
+				return ret;
+			}
+
+			return null;
 		}
 
-		return {};
+		return null;
 	}
 
 	//#endregion
 }
 
-export const US_SCANCODE_MAP: { [str: string]: KeyCode; } = {};
+export class BrowserKeyboardMapperFactory extends BrowserKeyboardMapperFactoryBase {
+	constructor(notificationService: INotificationService, storageService: IStorageService, commandService: ICommandService) {
+		super(notificationService, storageService, commandService);
 
-(function () {
-	function define(scanCode: string, keyCode: KeyCode): void {
-		US_SCANCODE_MAP[scanCode] = keyCode;
+		const platform = isWindows ? 'win' : isMacintosh ? 'darwin' : 'linux';
+
+		import('vs/workbench/services/keybinding/browser/keyboardLayouts/layout.contribution.' + platform).then((m) => {
+			let keymapInfos: IKeymapInfo[] = m.KeyboardLayoutContribution.INSTANCE.layoutInfos;
+			this._keymapInfos.push(...keymapInfos.map(info => (new KeymapInfo(info.layout, info.secondaryLayouts, info.mapping, info.isUserKeyboardLayout))));
+			this._mru = this._keymapInfos;
+			this._initialized = true;
+			this.onKeyboardLayoutChanged();
+		});
 	}
-
-	define('Backquote', KeyCode.US_BACKTICK);
-	define('Backslash', KeyCode.US_BACKSLASH);
-	define('BracketLeft', KeyCode.US_OPEN_SQUARE_BRACKET);
-	define('BracketRight', KeyCode.US_CLOSE_SQUARE_BRACKET);
-	define('Comma', KeyCode.US_COMMA);
-	define('Digit0', KeyCode.KEY_0);
-	define('Digit1', KeyCode.KEY_1);
-	define('Digit2', KeyCode.KEY_2);
-	define('Digit3', KeyCode.KEY_3);
-	define('Digit4', KeyCode.KEY_4);
-	define('Digit5', KeyCode.KEY_5);
-	define('Digit6', KeyCode.KEY_6);
-	define('Digit7', KeyCode.KEY_7);
-	define('Digit8', KeyCode.KEY_8);
-	define('Digit9', KeyCode.KEY_9);
-	define('Equal', KeyCode.US_EQUAL);
-	define('IntlBackslash', KeyCode.Unknown);
-	define('KeyA', KeyCode.KEY_A);
-	define('KeyB', KeyCode.KEY_B);
-	define('KeyC', KeyCode.KEY_C);
-	define('KeyD', KeyCode.KEY_D);
-	define('KeyE', KeyCode.KEY_E);
-	define('KeyF', KeyCode.KEY_F);
-	define('KeyG', KeyCode.KEY_G);
-	define('KeyH', KeyCode.KEY_H);
-	define('KeyI', KeyCode.KEY_I);
-	define('KeyJ', KeyCode.KEY_J);
-	define('KeyK', KeyCode.KEY_K);
-	define('KeyL', KeyCode.KEY_L);
-	define('KeyM', KeyCode.KEY_M);
-	define('KeyN', KeyCode.KEY_N);
-	define('KeyO', KeyCode.KEY_O);
-	define('KeyP', KeyCode.KEY_P);
-	define('KeyQ', KeyCode.KEY_Q);
-	define('KeyR', KeyCode.KEY_R);
-	define('KeyS', KeyCode.KEY_S);
-	define('KeyT', KeyCode.KEY_T);
-	define('KeyU', KeyCode.KEY_U);
-	define('KeyV', KeyCode.KEY_V);
-	define('KeyW', KeyCode.KEY_W);
-	define('KeyX', KeyCode.KEY_X);
-	define('KeyY', KeyCode.KEY_Y);
-	define('KeyZ', KeyCode.KEY_Z);
-	define('Minus', KeyCode.US_MINUS);
-	define('Period', KeyCode.US_DOT);
-	define('Quote', KeyCode.US_QUOTE);
-	define('Semicolon', KeyCode.US_SEMICOLON);
-	define('Slash', KeyCode.US_SLASH);
-})();
+}
 
 class UserKeyboardLayout extends Disposable {
 	private readonly reloadConfigurationScheduler: RunOnceScheduler;
@@ -513,21 +554,26 @@ class BrowserKeymapService extends Disposable implements IKeymapService {
 	private _userKeyboardLayout: UserKeyboardLayout;
 
 	private readonly layoutChangeListener = this._register(new MutableDisposable());
+	private readonly _factory: BrowserKeyboardMapperFactory;
 
 	constructor(
 		@IEnvironmentService environmentService: IEnvironmentService,
-		@IConfigurationService configurationService: IConfigurationService,
 		@IFileService fileService: IFileService,
+		@INotificationService notificationService: INotificationService,
+		@IStorageService storageService: IStorageService,
+		@ICommandService commandService: ICommandService,
+		@IConfigurationService private configurationService: IConfigurationService,
 	) {
 		super();
 		const keyboardConfig = configurationService.getValue<{ layout: string }>('keyboard');
 		const layout = keyboardConfig.layout;
+		this._factory = new BrowserKeyboardMapperFactory(notificationService, storageService, commandService);
 
 		this.registerKeyboardListener();
 
 		if (layout && layout !== 'autodetect') {
 			// set keyboard layout
-			BrowserKeyboardMapperFactory.INSTANCE.setKeyboardLayout(layout);
+			this._factory.setKeyboardLayout(layout);
 		}
 
 		this._register(configurationService.onDidChangeConfiguration(e => {
@@ -537,63 +583,80 @@ class BrowserKeymapService extends Disposable implements IKeymapService {
 
 				if (layout === 'autodetect') {
 					this.registerKeyboardListener();
-					BrowserKeyboardMapperFactory.INSTANCE.onKeyboardLayoutChanged();
+					this._factory.onKeyboardLayoutChanged();
 				} else {
-					BrowserKeyboardMapperFactory.INSTANCE.setKeyboardLayout(layout);
+					this._factory.setKeyboardLayout(layout);
+					this.layoutChangeListener.clear();
 				}
 			}
 		}));
 
 		this._userKeyboardLayout = new UserKeyboardLayout(environmentService.keyboardLayoutResource, fileService);
-		this._userKeyboardLayout.initialize();
+		this._userKeyboardLayout.initialize().then(() => {
+			if (this._userKeyboardLayout.keyboardLayout) {
+				this._factory.registerKeyboardLayout(this._userKeyboardLayout.keyboardLayout);
 
-		if (this._userKeyboardLayout.keyboardLayout) {
-			BrowserKeyboardMapperFactory.INSTANCE.registerKeyboardLayout(this._userKeyboardLayout.keyboardLayout);
-		}
+				this.setUserKeyboardLayoutIfMatched();
+			}
+		});
 
 		this._register(this._userKeyboardLayout.onDidChange(() => {
-			let userKeyboardLayouts = BrowserKeyboardMapperFactory.INSTANCE.keymapInfos.filter(layout => layout.isUserKeyboardLayout);
+			let userKeyboardLayouts = this._factory.keymapInfos.filter(layout => layout.isUserKeyboardLayout);
 
 			if (userKeyboardLayouts.length) {
 				if (this._userKeyboardLayout.keyboardLayout) {
 					userKeyboardLayouts[0].update(this._userKeyboardLayout.keyboardLayout);
 				} else {
-					BrowserKeyboardMapperFactory.INSTANCE.removeKeyboardLayout(userKeyboardLayouts[0]);
+					this._factory.removeKeyboardLayout(userKeyboardLayouts[0]);
 				}
 			} else {
 				if (this._userKeyboardLayout.keyboardLayout) {
-					BrowserKeyboardMapperFactory.INSTANCE.registerKeyboardLayout(this._userKeyboardLayout.keyboardLayout);
+					this._factory.registerKeyboardLayout(this._userKeyboardLayout.keyboardLayout);
 				}
 			}
 
-			// TODO: trigger keymap update
+			this.setUserKeyboardLayoutIfMatched();
 		}));
 	}
 
+	setUserKeyboardLayoutIfMatched() {
+		const keyboardConfig = this.configurationService.getValue<{ layout: string }>('keyboard');
+		const layout = keyboardConfig.layout;
+
+		if (layout && this._userKeyboardLayout.keyboardLayout) {
+			if (getKeyboardLayoutId(this._userKeyboardLayout.keyboardLayout.layout) === layout && this._factory.activeKeymap) {
+
+				if (!this._userKeyboardLayout.keyboardLayout.equal(this._factory.activeKeymap)) {
+					this._factory.setActiveKeymapInfo(this._userKeyboardLayout.keyboardLayout);
+				}
+			}
+		}
+	}
+
 	registerKeyboardListener() {
-		this.layoutChangeListener.value = BrowserKeyboardMapperFactory.INSTANCE.onDidChangeKeyboardMapper(() => {
+		this.layoutChangeListener.value = this._factory.onDidChangeKeyboardMapper(() => {
 			this._onDidChangeKeyboardMapper.fire();
 		});
 	}
 
 	getKeyboardMapper(dispatchConfig: DispatchConfig): IKeyboardMapper {
-		return BrowserKeyboardMapperFactory.INSTANCE.getKeyboardMapper(dispatchConfig);
+		return this._factory.getKeyboardMapper(dispatchConfig);
 	}
 
 	public getCurrentKeyboardLayout(): IKeyboardLayoutInfo | null {
-		return BrowserKeyboardMapperFactory.INSTANCE.activeKeyboardLayout;
+		return this._factory.activeKeyboardLayout;
 	}
 
 	public getAllKeyboardLayouts(): IKeyboardLayoutInfo[] {
-		return BrowserKeyboardMapperFactory.INSTANCE.keyboardLayouts;
+		return this._factory.keyboardLayouts;
 	}
 
 	public getRawKeyboardMapping(): IKeyboardMapping | null {
-		return BrowserKeyboardMapperFactory.INSTANCE.activeKeyMapping;
+		return this._factory.activeKeyMapping;
 	}
 
 	public validateCurrentKeyboardMapping(keyboardEvent: IKeyboardEvent): void {
-		BrowserKeyboardMapperFactory.INSTANCE.validateCurrentKeyboardMapping(keyboardEvent);
+		this._factory.validateCurrentKeyboardMapping(keyboardEvent);
 	}
 }
 

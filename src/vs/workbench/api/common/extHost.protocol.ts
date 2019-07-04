@@ -46,6 +46,7 @@ import * as callHierarchy from 'vs/workbench/contrib/callHierarchy/common/callHi
 import { IRelativePattern } from 'vs/base/common/glob';
 import { IRemoteConsoleLog } from 'vs/base/common/console';
 import { VSBuffer } from 'vs/base/common/buffer';
+import { ClassifiedEvent, StrictPropertyCheck, GDPRClassification } from 'vs/platform/telemetry/common/gdprTypings';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
@@ -58,7 +59,6 @@ export interface IEnvironment {
 	extensionTestsLocationURI?: URI;
 	globalStorageHome: URI;
 	userHome: URI;
-	webviewResourceRoot: string;
 }
 
 export interface IStaticWorkspaceData {
@@ -348,7 +348,7 @@ export interface MainThreadLanguageFeaturesShape extends IDisposable {
 	$registerOnTypeFormattingSupport(handle: number, selector: ISerializedDocumentFilter[], autoFormatTriggerCharacters: string[], extensionId: ExtensionIdentifier): void;
 	$registerNavigateTypeSupport(handle: number): void;
 	$registerRenameSupport(handle: number, selector: ISerializedDocumentFilter[], supportsResolveInitialValues: boolean): void;
-	$registerSuggestSupport(handle: number, selector: ISerializedDocumentFilter[], triggerCharacters: string[], supportsResolveDetails: boolean): void;
+	$registerSuggestSupport(handle: number, selector: ISerializedDocumentFilter[], triggerCharacters: string[], supportsResolveDetails: boolean, extensionId: ExtensionIdentifier): void;
 	$registerSignatureHelpProvider(handle: number, selector: ISerializedDocumentFilter[], metadata: ISerializedSignatureHelpProviderMetadata): void;
 	$registerDocumentLinkProvider(handle: number, selector: ISerializedDocumentFilter[], supportsResolve: boolean): void;
 	$registerDocumentColorProvider(handle: number, selector: ISerializedDocumentFilter[]): void;
@@ -389,8 +389,20 @@ export interface MainThreadProgressShape extends IDisposable {
 	$progressEnd(handle: number): void;
 }
 
+export interface TerminalLaunchConfig {
+	name?: string;
+	shellPath?: string;
+	shellArgs?: string[] | string;
+	cwd?: string | UriComponents;
+	env?: { [key: string]: string | null };
+	waitOnExit?: boolean;
+	strictEnv?: boolean;
+	hideFromUser?: boolean;
+	isVirtualProcess?: boolean;
+}
+
 export interface MainThreadTerminalServiceShape extends IDisposable {
-	$createTerminal(name?: string, shellPath?: string, shellArgs?: string[] | string, cwd?: string | UriComponents, env?: { [key: string]: string | null }, waitOnExit?: boolean, strictEnv?: boolean, runInBackground?: boolean): Promise<{ id: number, name: string }>;
+	$createTerminal(config: TerminalLaunchConfig): Promise<{ id: number, name: string }>;
 	$createTerminalRenderer(name: string): Promise<number>;
 	$dispose(terminalId: number): void;
 	$hide(terminalId: number): void;
@@ -403,6 +415,7 @@ export interface MainThreadTerminalServiceShape extends IDisposable {
 	$sendProcessData(terminalId: number, data: string): void;
 	$sendProcessReady(terminalId: number, pid: number, cwd: string): void;
 	$sendProcessExit(terminalId: number, exitCode: number): void;
+	$sendOverrideDimensions(terminalId: number, dimensions: ITerminalDimensions | undefined): void;
 	$sendProcessInitialCwd(terminalId: number, cwd: string): void;
 	$sendProcessCwd(terminalId: number, initialCwd: string): void;
 
@@ -424,6 +437,8 @@ export interface TransferQuickInputButton extends quickInput.IQuickInputButton {
 export type TransferQuickInput = TransferQuickPick | TransferInputBox;
 
 export interface BaseTransferQuickInput {
+
+	[key: string]: any;
 
 	id: number;
 
@@ -508,6 +523,7 @@ export interface MainThreadStorageShape extends IDisposable {
 
 export interface MainThreadTelemetryShape extends IDisposable {
 	$publicLog(eventName: string, data?: any): void;
+	$publicLog2<E extends ClassifiedEvent<T> = never, T extends GDPRClassification<T> = never>(eventName: string, data?: StrictPropertyCheck<T, E>): void;
 }
 
 export interface MainThreadEditorInsetsShape extends IDisposable {
@@ -517,6 +533,7 @@ export interface MainThreadEditorInsetsShape extends IDisposable {
 	$setHtml(handle: number, value: string): void;
 	$setOptions(handle: number, options: modes.IWebviewOptions): void;
 	$postMessage(handle: number, value: any): Promise<boolean>;
+	$getResourceRoot(handle: number): Promise<string>;
 }
 
 export interface ExtHostEditorInsetsShape {
@@ -541,6 +558,7 @@ export interface MainThreadWebviewsShape extends IDisposable {
 	$setHtml(handle: WebviewPanelHandle, value: string): void;
 	$setOptions(handle: WebviewPanelHandle, options: modes.IWebviewOptions): void;
 	$postMessage(handle: WebviewPanelHandle, value: any): Promise<boolean>;
+	$getResourceRoot(handle: WebviewPanelHandle): Promise<string>;
 
 	$registerSerializer(viewType: string): void;
 	$unregisterSerializer(viewType: string): void;
@@ -589,9 +607,21 @@ export interface IFileChangeDto {
 export interface MainThreadFileSystemShape extends IDisposable {
 	$registerFileSystemProvider(handle: number, scheme: string, capabilities: files.FileSystemProviderCapabilities): void;
 	$unregisterProvider(handle: number): void;
+	$onFileSystemChange(handle: number, resource: IFileChangeDto[]): void;
+
+	$stat(uri: UriComponents): Promise<files.IStat>;
+	$readdir(resource: UriComponents): Promise<[string, files.FileType][]>;
+	$readFile(resource: UriComponents): Promise<VSBuffer>;
+	$writeFile(resource: UriComponents, content: VSBuffer, opts: files.FileWriteOptions): Promise<void>;
+	$rename(resource: UriComponents, target: UriComponents, opts: files.FileOverwriteOptions): Promise<void>;
+	$copy(resource: UriComponents, target: UriComponents, opts: files.FileOverwriteOptions): Promise<void>;
+	$mkdir(resource: UriComponents): Promise<void>;
+	$delete(resource: UriComponents, opts: files.FileDeleteOptions): Promise<void>;
+}
+
+export interface MainThreadLabelServiceShape extends IDisposable {
 	$registerResourceLabelFormatter(handle: number, formatter: ResourceLabelFormatter): void;
 	$unregisterResourceLabelFormatter(handle: number): void;
-	$onFileSystemChange(handle: number, resource: IFileChangeDto[]): void;
 }
 
 export interface MainThreadSearchShape extends IDisposable {
@@ -605,7 +635,7 @@ export interface MainThreadSearchShape extends IDisposable {
 
 export interface MainThreadTaskShape extends IDisposable {
 	$createTaskId(task: tasks.TaskDTO): Promise<string>;
-	$registerTaskProvider(handle: number): Promise<void>;
+	$registerTaskProvider(handle: number, type: string): Promise<void>;
 	$unregisterTaskProvider(handle: number): Promise<void>;
 	$fetchTasks(filter?: tasks.TaskFilterDTO): Promise<tasks.TaskDTO[]>;
 	$executeTask(task: tasks.TaskHandleDTO | tasks.TaskDTO): Promise<tasks.TaskExecutionDTO>;
@@ -818,6 +848,10 @@ export interface ExtHostFileSystemShape {
 	$close(handle: number, fd: number): Promise<void>;
 	$read(handle: number, fd: number, pos: number, length: number): Promise<VSBuffer>;
 	$write(handle: number, fd: number, pos: number, data: VSBuffer): Promise<number>;
+}
+
+export interface ExtHostLabelServiceShape {
+	$registerResourceLabelFormatter(formatter: ResourceLabelFormatter): IDisposable;
 }
 
 export interface ExtHostSearchShape {
@@ -1149,6 +1183,7 @@ export interface ExtHostSCMShape {
 
 export interface ExtHostTaskShape {
 	$provideTasks(handle: number, validTypes: { [key: string]: boolean; }): Thenable<tasks.TaskSetDTO>;
+	$resolveTask(handle: number, taskDTO: tasks.TaskDTO): Thenable<tasks.TaskDTO | undefined>;
 	$onDidStartTask(execution: tasks.TaskExecutionDTO, terminalId: number): void;
 	$onDidStartTaskProcess(value: tasks.TaskProcessStartedDTO): void;
 	$onDidEndTaskProcess(value: tasks.TaskProcessEndedDTO): void;
@@ -1319,6 +1354,7 @@ export const MainContext = {
 	MainThreadSearch: createMainId<MainThreadSearchShape>('MainThreadSearch'),
 	MainThreadTask: createMainId<MainThreadTaskShape>('MainThreadTask'),
 	MainThreadWindow: createMainId<MainThreadWindowShape>('MainThreadWindow'),
+	MainThreadLabelService: createMainId<MainThreadLabelServiceShape>('MainThreadLabelService')
 };
 
 export const ExtHostContext = {
@@ -1352,4 +1388,5 @@ export const ExtHostContext = {
 	ExtHostStorage: createMainId<ExtHostStorageShape>('ExtHostStorage'),
 	ExtHostUrls: createExtId<ExtHostUrlsShape>('ExtHostUrls'),
 	ExtHostOutputService: createMainId<ExtHostOutputServiceShape>('ExtHostOutputService'),
+	ExtHosLabelService: createMainId<ExtHostLabelServiceShape>('ExtHostLabelService')
 };

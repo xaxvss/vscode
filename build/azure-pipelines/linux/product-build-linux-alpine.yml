@@ -35,19 +35,62 @@ steps:
 
     git config user.email "vscode@microsoft.com"
     git config user.name "VSCode"
+  displayName: Prepare tooling
+
+- script: |
+    set -e
     git remote add distro "https://github.com/$(VSCODE_MIXIN_REPO).git"
     git fetch distro
     git merge $(node -p "require('./package.json').distro")
+  displayName: Merge distro
 
-    CHILD_CONCURRENCY=1 yarn
+- task: 1ESLighthouseEng.PipelineArtifactCaching.RestoreCacheV1.RestoreCache@1
+  inputs:
+    keyfile: '.yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock'
+    targetfolder: '**/node_modules, !**/node_modules/**/node_modules'
+    vstsFeed: 'npm-vscode'
+
+- script: |
+    set -e
+    yarn --frozen-lockfile
+  displayName: Install dependencies
+  condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+
+- task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
+  inputs:
+    keyfile: '.yarnrc, remote/.yarnrc, **/yarn.lock, !**/node_modules/**/yarn.lock, !**/.*/**/yarn.lock'
+    targetfolder: '**/node_modules, !**/node_modules/**/node_modules'
+    vstsFeed: 'npm-vscode'
+  condition: and(succeeded(), ne(variables['CacheRestored'], 'true'))
+
+- script: |
+    set -e
+    yarn postinstall
+  displayName: Run postinstall scripts
+  condition: and(succeeded(), eq(variables['CacheRestored'], 'true'))
+
+- script: |
+    set -e
     yarn gulp mixin
+  displayName: Mix in quality
+
+- script: |
+    set -e
     yarn gulp hygiene
     yarn monaco-compile-check
+  displayName: Run hygiene checks
+  condition: and(succeeded(), eq(variables['VSCODE_STEP_ON_IT'], 'false'))
+
+- script: |
+    set -e
     ./build/azure-pipelines/linux/prebuild-alpine.sh
   displayName: Prepare build
 
 - script: |
     set -e
+    yarn gulp compile-build
+    yarn gulp compile-extensions-build-legacy
+    yarn gulp compile-extensions-build
     ./build/azure-pipelines/linux/build-alpine.sh
   displayName: Build
 

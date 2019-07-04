@@ -81,6 +81,8 @@ import { nodeWebSocketFactory } from 'vs/platform/remote/node/nodeWebSocketFacto
 import { VSBuffer } from 'vs/base/common/buffer';
 import { statSync } from 'fs';
 import { ISignService } from 'vs/platform/sign/common/sign';
+import { IDiagnosticsService } from 'vs/platform/diagnostics/common/diagnosticsService';
+import { DiagnosticsService } from 'vs/platform/diagnostics/node/diagnosticsIpc';
 
 export class CodeApplication extends Disposable {
 
@@ -133,8 +135,38 @@ export class CodeApplication extends Disposable {
 		});
 
 		// Security related measures (https://electronjs.org/docs/tutorial/security)
-		// DO NOT CHANGE without consulting the documentation
-		app.on('web-contents-created', (event: Electron.Event, contents) => {
+		//
+		// !!! DO NOT CHANGE without consulting the documentation !!!
+		//
+		// app.on('remote-get-guest-web-contents', event => event.preventDefault()); // TODO@Ben TODO@Matt revisit this need for <webview>
+		app.on('remote-require', (event, sender, module) => {
+			this.logService.trace('App#on(remote-require): prevented');
+
+			event.preventDefault();
+		});
+		app.on('remote-get-global', (event, sender, module) => {
+			this.logService.trace(`App#on(remote-get-global): prevented on ${module}`);
+
+			event.preventDefault();
+		});
+		app.on('remote-get-builtin', (event, sender, module) => {
+			this.logService.trace(`App#on(remote-get-builtin): prevented on ${module}`);
+
+			if (module !== 'clipboard') {
+				event.preventDefault();
+			}
+		});
+		app.on('remote-get-current-window', event => {
+			this.logService.trace(`App#on(remote-get-current-window): prevented`);
+
+			event.preventDefault();
+		});
+		app.on('remote-get-current-web-contents', event => {
+			this.logService.trace(`App#on(remote-get-current-web-contents): prevented`);
+
+			event.preventDefault();
+		});
+		app.on('web-contents-created', (_event: Electron.Event, contents) => {
 			contents.on('will-attach-webview', (event: Electron.Event, webPreferences, params) => {
 
 				const isValidWebviewSource = (source: string): boolean => {
@@ -407,6 +439,10 @@ export class CodeApplication extends Disposable {
 		services.set(IWindowsMainService, new SyncDescriptor(WindowsManager, [machineId, this.userEnv]));
 		services.set(IWindowsService, new SyncDescriptor(WindowsService, [sharedProcess]));
 		services.set(ILaunchService, new SyncDescriptor(LaunchService));
+
+		const diagnosticsChannel = getDelayedChannel(sharedProcessClient.then(client => client.getChannel('diagnostics')));
+		services.set(IDiagnosticsService, new SyncDescriptor(DiagnosticsService, [diagnosticsChannel]));
+
 		services.set(IIssueService, new SyncDescriptor(IssueService, [machineId, this.userEnv]));
 		services.set(IMenubarService, new SyncDescriptor(MenubarService));
 

@@ -2070,7 +2070,7 @@ declare module 'vscode' {
 		/**
 		 * An array of diagnostics.
 		 */
-		readonly diagnostics: Diagnostic[];
+		readonly diagnostics: ReadonlyArray<Diagnostic>;
 
 		/**
 		 * Requested kind of actions to return.
@@ -3548,7 +3548,7 @@ declare module 'vscode' {
 		 * The tooltip text when you hover over this link.
 		 *
 		 * If a tooltip is provided, is will be displayed in a string that includes instructions on how to
-		 * trigger the link, such as `cmd + click to {0}`. The specific instructions vary depending on OS,
+		 * trigger the link, such as `{0} (ctrl + click)`. The specific instructions vary depending on OS,
 		 * user settings, and localization.
 		 */
 		tooltip?: string;
@@ -3826,7 +3826,7 @@ declare module 'vscode' {
 		/**
 		 * Provide selection ranges for the given positions.
 		 *
-		 * Selection ranges should be computed individually and independend for each postion. The editor will merge
+		 * Selection ranges should be computed individually and independend for each position. The editor will merge
 		 * and deduplicate ranges but providers must return hierarchies of selection ranges so that a range
 		 * is [contained](#Range.contains) by its parent.
 		 *
@@ -4675,6 +4675,23 @@ declare module 'vscode' {
 	}
 
 	/**
+	 * In a remote window the extension kind describes if an extension
+	 * runs where the UI (window) runs or if an extension runs remotely.
+	 */
+	export enum ExtensionKind {
+
+		/**
+		 * Extension runs where the UI runs.
+		 */
+		UI = 1,
+
+		/**
+		 * Extension runs where the remote extension host runs.
+		 */
+		Workspace = 2
+	}
+
+	/**
 	 * Represents an extension.
 	 *
 	 * To get an instance of an `Extension` use [getExtension](#extensions.getExtension).
@@ -4700,6 +4717,15 @@ declare module 'vscode' {
 		 * The parsed contents of the extension's package.json.
 		 */
 		readonly packageJSON: any;
+
+		/**
+		 * The extension kind describes if an extension runs where the UI runs
+		 * or if an extension runs where the remote extension host runs. The extension kind
+		 * if defined in the `package.json` file of extensions but can also be refined
+		 * via the the `remote.extensionKind`-setting. When no remote extension host exists,
+		 * the value is [`ExtensionKind.UI`](#ExtensionKind.UI).
+		 */
+		extensionKind: ExtensionKind;
 
 		/**
 		 * The public API exported by this extension. It is an invalid action
@@ -4728,24 +4754,24 @@ declare module 'vscode' {
 		 * An array to which disposables can be added. When this
 		 * extension is deactivated the disposables will be disposed.
 		 */
-		subscriptions: { dispose(): any }[];
+		readonly subscriptions: { dispose(): any }[];
 
 		/**
 		 * A memento object that stores state in the context
 		 * of the currently opened [workspace](#workspace.workspaceFolders).
 		 */
-		workspaceState: Memento;
+		readonly workspaceState: Memento;
 
 		/**
 		 * A memento object that stores state independent
 		 * of the current opened [workspace](#workspace.workspaceFolders).
 		 */
-		globalState: Memento;
+		readonly globalState: Memento;
 
 		/**
 		 * The absolute file path of the directory containing the extension.
 		 */
-		extensionPath: string;
+		readonly extensionPath: string;
 
 		/**
 		 * Get the absolute path of a resource contained in the extension.
@@ -4763,7 +4789,7 @@ declare module 'vscode' {
 		 * Use [`workspaceState`](#ExtensionContext.workspaceState) or
 		 * [`globalState`](#ExtensionContext.globalState) to store key value data.
 		 */
-		storagePath: string | undefined;
+		readonly storagePath: string | undefined;
 
 		/**
 		 * An absolute file path in which the extension can store global state.
@@ -4772,14 +4798,14 @@ declare module 'vscode' {
 		 *
 		 * Use [`globalState`](#ExtensionContext.globalState) to store key value data.
 		 */
-		globalStoragePath: string;
+		readonly globalStoragePath: string;
 
 		/**
 		 * An absolute file path of a directory in which the extension can create log files.
 		 * The directory might not exist on disk and creation is up to the extension. However,
 		 * the parent directory is guaranteed to be existent.
 		 */
-		logPath: string;
+		readonly logPath: string;
 	}
 
 	/**
@@ -6043,6 +6069,17 @@ declare module 'vscode' {
 		export const sessionId: string;
 
 		/**
+		 * The name of a remote. Defined by extensions, popular samples are `wsl` for the Windows
+		 * Subsystem for Linux or `ssh-remote` for remotes using a secure shell.
+		 *
+		 * *Note* that the value is `undefined` when there is no remote extension host but that the
+		 * value is defined in all extension hosts (local and remote) in case a remote extension host
+		 * exists. Use [`Extension#extensionKind`](#Extension.extensionKind) to know if
+		 * a specific extension runs remote or not.
+		 */
+		export const remoteName: string | undefined;
+
+		/**
 		 * Opens an *external* item, e.g. a http(s) or mailto-link, using the
 		 * default application.
 		 *
@@ -7005,7 +7042,7 @@ declare module 'vscode' {
 		 * interaction is needed. Note that the terminals will still be exposed to all extensions
 		 * as normal.
 		 */
-		runInBackground?: boolean;
+		hideFromUser?: boolean;
 	}
 
 	/**
@@ -7501,6 +7538,37 @@ declare module 'vscode' {
 		 * has been opened.
 		 */
 		export const name: string | undefined;
+
+		/**
+		 * The location of the workspace file, for example:
+		 *
+		 * `file:///Users/name/Development/myProject.code-workspace`
+		 *
+		 * or
+		 *
+		 * `untitled:1555503116870`
+		 *
+		 * for a workspace that is untitled and not yet saved.
+		 *
+		 * Depending on the workspace that is opened, the value will be:
+		 *  * `undefined` when no workspace or  a single folder is opened
+		 *  * the path of the workspace file as `Uri` otherwise. if the workspace
+		 * is untitled, the returned URI will use the `untitled:` scheme
+		 *
+		 * The location can e.g. be used with the `vscode.openFolder` command to
+		 * open the workspace again after it has been closed.
+		 *
+		 * **Example:**
+		 * ```typescript
+		 * vscode.commands.executeCommand('vscode.openFolder', uriOfWorkspace);
+		 * ```
+		 *
+		 * **Note:** it is not advised to use `workspace.workspaceFile` to write
+		 * configuration data into the file. You can use `workspace.getConfiguration().update()`
+		 * for that purpose which will work both when a single folder is opened as
+		 * well as an untitled or saved workspace.
+		 */
+		export const workspaceFile: Uri | undefined;
 
 		/**
 		 * An event that is emitted when a workspace folder is added or removed.
@@ -8957,7 +9025,7 @@ declare module 'vscode' {
 		/**
 		 * All extensions currently known to the system.
 		 */
-		export let all: Extension<any>[];
+		export const all: ReadonlyArray<Extension<any>>;
 
 		/**
 		 * An event which fires when `extensions.all` changes. This can happen when extensions are
