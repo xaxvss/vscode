@@ -89,7 +89,7 @@ export class BrowserWorkbenchEnvironmentService implements IEnvironmentService {
 			break: false
 		};
 
-		this.webviewEndpoint = configuration.webviewEndpoint;
+		this.webviewEndpoint = true ? 'https://{{uuid}}.vscode-webview-test.com/8fa811108f0f0524c473020ef57b6620f6c201e1' : configuration.webviewEndpoint;
 		this.untitledWorkspacesHome = URI.from({ scheme: Schemas.untitled, path: 'Workspaces' });
 	}
 
