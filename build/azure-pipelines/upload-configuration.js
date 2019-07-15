@@ -57,7 +57,7 @@ function generateVSCodeConfigurationTask() {
 const allConfigDetailsPath = path.join(os.tmpdir(), 'configuration.json');
 
 function main() {
-	generateVSCodeConfigurationTask().then(() => {
+	return generateVSCodeConfigurationTask().then(() => {
 		if (!settings.shouldSetupSettingsSearch()) {
 			const branch = process.env.BUILD_SOURCEBRANCH;
 			console.log(`Only runs on master and release branches, not ${branch}`);
