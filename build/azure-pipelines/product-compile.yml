@@ -114,6 +114,13 @@ steps:
   displayName: Upload sourcemaps
   condition: and(succeeded(), ne(variables['CacheRestored-Compilation'], 'true'))
 
+- script: |
+    set -e
+    AZURE_STORAGE_ACCESS_KEY="$(ticino-storage-key)" \
+      node build/azure-pipelines/upload-configuration
+  displayName: Upload configuration
+  condition: and(succeeded(), ne(variables['CacheRestored-Compilation'], 'true'))
+
 - task: 1ESLighthouseEng.PipelineArtifactCaching.SaveCacheV1.SaveCache@1
   inputs:
     keyfile: 'build/.cachesalt, .build/commit'

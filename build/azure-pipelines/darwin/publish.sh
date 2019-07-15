@@ -31,6 +31,3 @@ node build/azure-pipelines/common/publish.js \
 
 # publish hockeyapp symbols
 node build/azure-pipelines/common/symbols.js "$VSCODE_MIXIN_PASSWORD" "$VSCODE_HOCKEYAPP_TOKEN" x64 "$VSCODE_HOCKEYAPP_ID_MACOS"
-
-# upload configuration
-yarn gulp upload-vscode-configuration
