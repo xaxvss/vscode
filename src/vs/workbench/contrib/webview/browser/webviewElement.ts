@@ -138,7 +138,7 @@ export class IFrameWebview extends Disposable implements Webview {
 		this._register(themeService.onThemeChange(this.style, this));
 	}
 
-	private get endpoint(): string {
+	protected get endpoint(): string {
 		const endpoint = this._environmentService.webviewEndpoint!.replace('{{uuid}}', this.id);
 		if (endpoint[endpoint.length - 1] === '/') {
 			return endpoint.slice(0, endpoint.length - 1);

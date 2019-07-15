@@ -63,7 +63,14 @@ const nodeCachedDataDir = getNodeCachedDir();
 configureCommandlineSwitches(args);
 
 
-require('electron').protocol.registerStandardSchemes(['vscode-webview'], true);
+require('electron').protocol.registerSchemesAsPrivileged([{
+	scheme: 'vscode-webview', privileges: {
+		standard: true,
+		secure: true,
+		allowServiceWorkers: true,
+		supportFetchAPI: true,
+	}
+}]);
 
 // Load our code once ready
 app.once('ready', function () {
