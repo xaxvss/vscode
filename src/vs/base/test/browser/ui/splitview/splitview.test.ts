@@ -523,4 +523,26 @@ suite('Splitview', () => {
 		view2.dispose();
 		view1.dispose();
 	});
+
+	test('getViewSizeConstraints', () => {
+		const view1 = new TestView(20, Number.POSITIVE_INFINITY);
+		const view2 = new TestView(20, Number.POSITIVE_INFINITY);
+		const splitview = new SplitView(container, { proportionalLayout: false });
+		splitview.layout(200);
+
+		splitview.addView(view1, Sizing.Distribute);
+		splitview.addView(view2, Sizing.Distribute);
+		assert.deepEqual(splitview.getViewSizeConstraints(0), { minimumSize: 20, maximumSize: 180 });
+		assert.deepEqual(splitview.getViewSizeConstraints(1), { minimumSize: 20, maximumSize: 180 });
+
+		const view3 = new TestView(40, 80);
+		splitview.addView(view3, Sizing.Distribute);
+		assert.deepEqual(splitview.getViewSizeConstraints(0), { minimumSize: 20, maximumSize: 140 });
+		assert.deepEqual(splitview.getViewSizeConstraints(1), { minimumSize: 20, maximumSize: 140 });
+		assert.deepEqual(splitview.getViewSizeConstraints(2), { minimumSize: 40, maximumSize: 80 });
+
+		splitview.removeView(1);
+		assert.deepEqual(splitview.getViewSizeConstraints(0), { minimumSize: 120, maximumSize: 160 });
+		assert.deepEqual(splitview.getViewSizeConstraints(1), { minimumSize: 40, maximumSize: 80 });
+	});
 });

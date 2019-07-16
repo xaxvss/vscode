@@ -6,7 +6,7 @@
 import 'vs/css!./gridview';
 import { Event, Emitter, Relay } from 'vs/base/common/event';
 import { Orientation, Sash } from 'vs/base/browser/ui/sash/sash';
-import { SplitView, IView as ISplitView, Sizing, LayoutPriority, ISplitViewStyles } from 'vs/base/browser/ui/splitview/splitview';
+import { SplitView, IView as ISplitView, Sizing, LayoutPriority, ISplitViewStyles, IViewSizeConstraints as ISplitViewSizeConstraints } from 'vs/base/browser/ui/splitview/splitview';
 import { Disposable, IDisposable, toDisposable } from 'vs/base/common/lifecycle';
 import { $ } from 'vs/base/browser/dom';
 import { tail2 as tail } from 'vs/base/common/arrays';
@@ -18,6 +18,13 @@ export { Orientation } from 'vs/base/browser/ui/sash/sash';
 export interface IViewSize {
 	readonly width: number;
 	readonly height: number;
+}
+
+export interface IViewSizeConstraints {
+	readonly minimumWidth: number;
+	readonly maximumWidth: number;
+	readonly minimumHeight: number;
+	readonly maximumHeight: number;
 }
 
 export interface IView {
@@ -289,6 +296,10 @@ class BranchNode implements ISplitView, IDisposable {
 		}
 
 		this.splitview.resizeView(index, size);
+	}
+
+	getViewSizeConstraints(index: number, size = this.size): ISplitViewSizeConstraints {
+		return this.splitview.getViewSizeConstraints(index, size);
 	}
 
 	distributeViewSizes(recursive = false): void {
@@ -810,6 +821,48 @@ export class GridView implements IDisposable {
 	getViewSize(location: number[]): IViewSize {
 		const [, node] = this.getNode(location);
 		return { width: node.width, height: node.height };
+	}
+
+
+	getViewSizeConstraints(location: number[]): IViewSizeConstraints {
+		const [ancestors, node] = this.getNode(location);
+
+		if (!(node instanceof LeafNode)) {
+			throw new Error('Invalid location');
+		}
+
+		let minimumWidth = 0;
+		let maximumWidth = this.width;
+		let minimumHeight = 0;
+		let maximumHeight = this.height;
+
+		for (let i = 0; i < ancestors.length; i++) {
+			if (ancestors[i].orientation === Orientation.HORIZONTAL) {
+				const { minimumSize, maximumSize } = ancestors[i].getViewSizeConstraints(location[i], maximumWidth);
+				minimumWidth = Math.max(minimumWidth, minimumSize);
+				maximumWidth = Math.min(maximumWidth, maximumSize);
+				// minimumHeight = Math.max(minimumHeight, ancestors[i].minimumHeight);
+				// maximumHeight = Math.min(maximumHeight, ancestors[i].maximumHeight);
+			} else {
+				const { minimumSize, maximumSize } = ancestors[i].getViewSizeConstraints(location[i], maximumHeight);
+				// minimumWidth = Math.max(minimumWidth, ancestors[i].minimumWidth);
+				// maximumWidth = Math.min(maximumWidth, ancestors[i].maximumWidth);
+				minimumHeight = Math.max(minimumHeight, minimumSize);
+				maximumHeight = Math.min(maximumHeight, maximumSize);
+			}
+		}
+
+		if (ancestors.length === 1) {
+			if (this.root.orientation === Orientation.HORIZONTAL) {
+				maximumHeight = Math.min(this.maximumHeight, this.height);
+				minimumHeight = Math.max(this.minimumHeight, this.height);
+			} else {
+				maximumWidth = Math.min(this.maximumWidth, this.width);
+				minimumWidth = Math.max(this.minimumWidth, this.width);
+			}
+		}
+
+		return { minimumWidth, maximumWidth, minimumHeight, maximumHeight };
 	}
 
 	maximizeViewSize(location: number[]): void {

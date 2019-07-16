@@ -222,4 +222,37 @@ suite('Gridview', function () {
 		assert.deepEqual(view2.size, [400, 300]);
 		assert.deepEqual(view3.size, [400, 300]);
 	});
+
+	test('getViewSizeConstraints', function () {
+		const view1 = new TestView(50, Number.POSITIVE_INFINITY, 50, Number.POSITIVE_INFINITY);
+		gridview.addView(view1, 200, [0]);
+
+		const view2 = new TestView(50, Number.POSITIVE_INFINITY, 50, Number.POSITIVE_INFINITY);
+		gridview.addView(view2, 200, [1]);
+
+		const view3 = new TestView(50, Number.POSITIVE_INFINITY, 50, Number.POSITIVE_INFINITY);
+		gridview.addView(view3, 200, [1, 1]);
+
+		gridview.layout(800, 600);
+		assert.deepEqual(view1.size, [800, 300]);
+		assert.deepEqual(view2.size, [400, 300]);
+		assert.deepEqual(view3.size, [400, 300]);
+
+		assert.deepEqual(gridview.getViewSizeConstraints([0]), { minimumWidth: 800, maximumWidth: 800, minimumHeight: 50, maximumHeight: 550 });
+		assert.deepEqual(gridview.getViewSizeConstraints([1, 0]), { minimumWidth: 50, maximumWidth: 750, minimumHeight: 50, maximumHeight: 550 });
+		assert.deepEqual(gridview.getViewSizeConstraints([1, 1]), { minimumWidth: 50, maximumWidth: 750, minimumHeight: 50, maximumHeight: 550 });
+
+		const view4 = new TestView(50, Number.POSITIVE_INFINITY, 50, Number.POSITIVE_INFINITY);
+		gridview.addView(view4, 200, [1, 1, 1]);
+
+		assert.deepEqual(view1.size, [800, 300]);
+		assert.deepEqual(view2.size, [400, 300]);
+		assert.deepEqual(view3.size, [400, 100]);
+		assert.deepEqual(view4.size, [400, 200]);
+
+		assert.deepEqual(gridview.getViewSizeConstraints([0]), { minimumWidth: 800, maximumWidth: 800, minimumHeight: 50, maximumHeight: 500 });
+		assert.deepEqual(gridview.getViewSizeConstraints([1, 0]), { minimumWidth: 50, maximumWidth: 750, minimumHeight: 100, maximumHeight: 550 });
+		assert.deepEqual(gridview.getViewSizeConstraints([1, 1, 0]), { minimumWidth: 50, maximumWidth: 750, minimumHeight: 50, maximumHeight: 500 });
+		assert.deepEqual(gridview.getViewSizeConstraints([1, 1, 1]), { minimumWidth: 50, maximumWidth: 750, minimumHeight: 50, maximumHeight: 500 });
+	});
 });

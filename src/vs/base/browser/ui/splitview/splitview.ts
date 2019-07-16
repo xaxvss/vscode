@@ -52,6 +52,11 @@ export interface IView {
 	setVisible?(visible: boolean): void;
 }
 
+export interface IViewSizeConstraints {
+	readonly minimumSize: number;
+	readonly maximumSize: number;
+}
+
 interface ISashEvent {
 	sash: Sash;
 	start: number;
@@ -641,6 +646,16 @@ export class SplitView extends Disposable {
 		}
 
 		return this.viewItems[index].size;
+	}
+
+	getViewSizeConstraints(index: number, size: number = this.size): IViewSizeConstraints {
+		const rest = range(0, this.viewItems.length).filter(i => i !== index);
+		const othersMinimumSize = rest.reduce((r, i) => r + this.viewItems[i].minimumSize, 0);
+		const othersMaximumSize = rest.reduce((r, i) => r + this.viewItems[i].maximumSize, 0);
+		const minimumSize = Math.max(this.viewItems[index].minimumSize, size - Math.min(othersMaximumSize, size));
+		const maximumSize = Math.min(this.viewItems[index].maximumSize, size - othersMinimumSize);
+
+		return { minimumSize, maximumSize };
 	}
 
 	private resize(
