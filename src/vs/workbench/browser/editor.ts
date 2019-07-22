@@ -8,12 +8,15 @@ import { SyncDescriptor } from 'vs/platform/instantiation/common/descriptors';
 import { Registry } from 'vs/platform/registry/common/platform';
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
 import { IConstructorSignature0, IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { URI } from 'vs/base/common/uri';
 
 export interface IEditorDescriptor {
 	instantiate(instantiationService: IInstantiationService): BaseEditor;
 
 	getId(): string;
 	getName(): string;
+
+	isPreferredEditorForResource(resource: URI | undefined): boolean;
 
 	describes(obj: unknown): boolean;
 }
@@ -45,6 +48,8 @@ export interface IEditorRegistry {
 	 * Returns an array of registered editors known to the platform.
 	 */
 	getEditors(): readonly IEditorDescriptor[];
+
+	getPreferredEditorsForResource(resource: URI): readonly IEditorDescriptor[];
 }
 
 /**
@@ -56,7 +61,8 @@ export class EditorDescriptor implements IEditorDescriptor {
 	constructor(
 		private readonly ctor: IConstructorSignature0<BaseEditor>,
 		private readonly id: string,
-		private readonly name: string
+		private readonly name: string,
+		private readonly _isPreferedEditorForAllResources: boolean = false,
 	) { }
 
 	instantiate(instantiationService: IInstantiationService): BaseEditor {
@@ -69,6 +75,10 @@ export class EditorDescriptor implements IEditorDescriptor {
 
 	getName(): string {
 		return this.name;
+	}
+
+	isPreferredEditorForResource(resource: URI | undefined): boolean {
+		return !!resource && this._isPreferedEditorForAllResources;
 	}
 
 	describes(obj: unknown): boolean {
@@ -93,6 +103,10 @@ class EditorRegistry implements IEditorRegistry {
 			const matchingDescriptors: EditorDescriptor[] = [];
 
 			for (const editor of this.editors) {
+				if (!editor.isPreferredEditorForResource(input.getResource())) {
+					continue;
+				}
+
 				const inputDescriptors = this.mapEditorToInputs.get(editor) || [];
 				for (const inputDescriptor of inputDescriptors) {
 					const inputClass = inputDescriptor.ctor;
@@ -151,6 +165,10 @@ class EditorRegistry implements IEditorRegistry {
 
 	getEditors(): readonly EditorDescriptor[] {
 		return this.editors.slice(0);
+	}
+
+	getPreferredEditorsForResource(resource: URI): readonly EditorDescriptor[] {
+		return this.getEditors().filter(editor => editor.isPreferredEditorForResource(resource));
 	}
 
 	setEditors(editorsToSet: EditorDescriptor[]): void {

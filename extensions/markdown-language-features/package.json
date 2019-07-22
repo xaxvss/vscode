@@ -24,9 +24,17 @@
 		"onCommand:markdown.showLockedPreviewToSide",
 		"onCommand:markdown.showSource",
 		"onCommand:markdown.showPreviewSecuritySelector",
-		"onWebviewPanel:markdown.preview"
+		"onWebviewPanel:markdown.preview",
+		"onWebviewEditor:markdown.previewEditor"
 	],
 	"contributes": {
+    "webviewEditors": [
+      {
+        "viewType": "markdown.previewEditor",
+        "displayName": "Markdown Preview Editor",
+        "extensions": [".md"]
+      }
+    ],
 		"commands": [
 			{
 				"command": "markdown.showPreview",

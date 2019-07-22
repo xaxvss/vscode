@@ -65,6 +65,17 @@ export interface IWebviewEditorService {
 	shouldPersist(
 		input: WebviewEditorInput
 	): boolean;
+
+	registerEditorProvider(
+		viewType: string,
+		provider: WebviewEditorProvider,
+	): IDisposable;
+
+	resolveWebviewEditor(
+		viewType: string,
+		resource: URI,
+		webview: WebviewEditorInput,
+	): Promise<void>;
 }
 
 export interface WebviewReviver {
@@ -73,6 +84,13 @@ export interface WebviewReviver {
 	): boolean;
 
 	reviveWebview(
+		webview: WebviewEditorInput
+	): Promise<void>;
+}
+
+export interface WebviewEditorProvider {
+	resolveWebviewEditor(
+		resource: URI,
 		webview: WebviewEditorInput
 	): Promise<void>;
 }
@@ -122,6 +140,8 @@ export class WebviewEditorService implements IWebviewEditorService {
 
 	private readonly _revivers = new Set<WebviewReviver>();
 	private readonly _revivalPool = new RevivalPool();
+
+	private readonly _editorProviders = new Map<string, WebviewEditorProvider>();
 
 	constructor(
 		@IEditorService private readonly _editorService: IEditorService,
@@ -239,6 +259,29 @@ export class WebviewEditorService implements IWebviewEditorService {
 			}
 		}
 		return false;
+	}
+
+	public registerEditorProvider(
+		viewType: string,
+		provider: WebviewEditorProvider,
+	): IDisposable {
+		this._editorProviders.set(viewType, provider);
+
+		return toDisposable(() => {
+			this._editorProviders.delete(viewType);
+		});
+	}
+
+	public resolveWebviewEditor(
+		viewType: string,
+		resource: URI,
+		webview: WebviewEditorInput,
+	): Promise<void> {
+		const provider = this._editorProviders.get(viewType);
+		if (!provider) {
+			throw new Error('Unknown webview viewType');
+		}
+		return provider.resolveWebviewEditor(resource, webview);
 	}
 
 	private createWebiew(id: string, extension: { location: URI; id: ExtensionIdentifier; } | undefined, options: WebviewInputOptions) {

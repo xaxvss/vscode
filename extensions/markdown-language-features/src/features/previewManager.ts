@@ -6,7 +6,7 @@
 import * as vscode from 'vscode';
 import { Logger } from '../logger';
 import { MarkdownContributionProvider } from '../markdownExtensions';
-import { disposeAll, Disposable } from '../util/dispose';
+import { Disposable, disposeAll } from '../util/dispose';
 import { MarkdownFileTopmostLineMonitor } from '../util/topmostLineMonitor';
 import { MarkdownPreview, PreviewSettings } from './preview';
 import { MarkdownPreviewConfigurationManager } from './previewConfig';
@@ -28,6 +28,7 @@ export class MarkdownPreviewManager extends Disposable implements vscode.Webview
 	) {
 		super();
 		this._register(vscode.window.registerWebviewPanelSerializer(MarkdownPreview.viewType, this));
+		this._register(vscode.window.registerWebviewEditorProvider('markdown.previewEditor', this));
 	}
 
 	public dispose(): void {
@@ -90,6 +91,22 @@ export class MarkdownPreviewManager extends Disposable implements vscode.Webview
 		const preview = await MarkdownPreview.revive(
 			webview,
 			state,
+			this._contentProvider,
+			this._previewConfigurations,
+			this._logger,
+			this._topmostLineMonitor,
+			this._contributions);
+
+		this.registerPreview(preview);
+	}
+
+	public async resolveWebviewEditor(
+		resource: vscode.Uri,
+		webview: vscode.WebviewEditor,
+	) {
+		const preview = await MarkdownPreview.revive(
+			webview,
+			{ resource: resource.toString() },
 			this._contentProvider,
 			this._previewConfigurations,
 			this._logger,

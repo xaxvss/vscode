@@ -555,6 +555,9 @@ export function createApiFactory(
 			registerWebviewPanelSerializer: (viewType: string, serializer: vscode.WebviewPanelSerializer) => {
 				return extHostWebviews.registerWebviewPanelSerializer(viewType, serializer);
 			},
+			registerWebviewEditorProvider: proposedApiFunction(extension, (viewType: string, provider: vscode.WebviewEditorProvider) => {
+				return extHostWebviews.registerWebviewEditorProvider(viewType, provider);
+			}),
 			registerDecorationProvider: proposedApiFunction(extension, (provider: vscode.DecorationProvider) => {
 				return extHostDecorations.registerDecorationProvider(provider, extension.identifier);
 			}),

@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Event } from 'vs/base/common/event';
+import { IJSONSchema } from 'vs/base/common/jsonSchema';
 import { IDisposable } from 'vs/base/common/lifecycle';
 import { URI } from 'vs/base/common/uri';
 import * as modes from 'vs/editor/common/modes';
@@ -11,6 +12,8 @@ import * as nls from 'vs/nls';
 import { RawContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { ExtensionIdentifier } from 'vs/platform/extensions/common/extensions';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
+import { ExtensionsRegistry } from 'vs/workbench/services/extensions/common/extensionsRegistry';
+import { languagesExtPoint } from 'vs/workbench/services/mode/common/workbenchModeService';
 
 /**
  * Set when the find widget in a webview is visible.
@@ -102,3 +105,42 @@ export interface WebviewEditorOverlay extends Webview {
 }
 
 export const webviewDeveloperCategory = nls.localize('developer', "Developer");
+
+export interface IWebviewEditorsExtensionPoint {
+	readonly viewType: string;
+	readonly displayName: string;
+	readonly extensions?: readonly string[];
+}
+
+export const snippetsContribution: IJSONSchema = {
+	description: nls.localize('vscode.extension.contributes.webviewEditors', 'Contributes webview editors.'),
+	type: 'array',
+	defaultSnippets: [{ body: [{ viewType: '', displayName: '' }] }],
+	items: {
+		type: 'object',
+		required: [
+			'viewType',
+			'displayName'
+		],
+		properties: {
+			viewType: {
+				description: nls.localize('vscode.extension.contributes.webviewEditors-viewType', 'XXX.'),
+				type: 'string'
+			},
+			displayName: {
+				description: nls.localize('vscode.extension.contributes.webviewEditors-displayName', 'XXX.'),
+				type: 'string'
+			},
+			extensions: {
+				type: 'array',
+				description: nls.localize('vscode.extension.contributes.webviewEditors-extensions', 'XXX.'),
+			}
+		}
+	}
+};
+
+export const contributionPoint = ExtensionsRegistry.registerExtensionPoint<IWebviewEditorsExtensionPoint[]>({
+	extensionPoint: 'webviewEditors',
+	deps: [languagesExtPoint],
+	jsonSchema: snippetsContribution
+});
