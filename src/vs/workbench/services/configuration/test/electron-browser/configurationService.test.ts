@@ -1585,26 +1585,29 @@ suite('WorkspaceConfigurationService - Remote Folder', () => {
 		return promise;
 	});
 
-	// test('update remote settings', async () => {
-	// 	registerRemoteFileSystemProvider();
-	// 	resolveRemoteEnvironment();
-	// 	await initialize();
-	// 	assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'isSet');
-	// 	const promise = new Promise((c, e) => {
-	// 		testObject.onDidChangeConfiguration(event => {
-	// 			try {
-	// 				assert.equal(event.source, ConfigurationTarget.USER);
-	// 				assert.deepEqual(event.affectedKeys, ['configurationService.remote.machineSetting']);
-	// 				assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'remoteValue');
-	// 				c();
-	// 			} catch (error) {
-	// 				e(error);
-	// 			}
-	// 		});
-	// 	});
-	// 	fs.writeFileSync(remoteSettingsFile, '{ "configurationService.remote.machineSetting": "remoteValue" }');
-	// 	return promise;
-	// });
+	test('update remote settings', async () => {
+		registerRemoteFileSystemProvider();
+		resolveRemoteEnvironment();
+		await initialize();
+		assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'isSet');
+		const promise = new Promise((c, e) => {
+			const disposable = testObject.onDidChangeConfiguration(event => {
+				try {
+					disposable.dispose();
+					assert.equal(event.source, ConfigurationTarget.USER);
+					assert.deepEqual(event.affectedKeys, ['configurationService.remote.machineSetting']);
+					assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'remoteValue');
+					c();
+				} catch (error) {
+					e(error);
+				}
+			});
+		});
+		fs.writeFileSync(remoteSettingsFile, '{ "configurationService.remote.machineSetting": "remoteValue" }');
+		await testObject.reloadConfiguration();
+		assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'remoteValue');
+		return promise;
+	});
 
 	test('machine settings in local user settings does not override defaults', async () => {
 		fs.writeFileSync(globalSettingsFile, '{ "configurationService.remote.machineSetting": "globalValue" }');
