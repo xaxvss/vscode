@@ -1591,7 +1591,7 @@ suite('WorkspaceConfigurationService - Remote Folder', () => {
 		resolveRemoteEnvironment();
 		await initialize();
 		assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'remoteValue');
-		const promise = new Promise((c, e) => {
+		return new Promise((c, e) => {
 			const disposable = testObject.onDidChangeConfiguration(event => {
 				try {
 					disposable.dispose();
@@ -1603,9 +1603,8 @@ suite('WorkspaceConfigurationService - Remote Folder', () => {
 					e(error);
 				}
 			});
+			fs.writeFileSync(remoteSettingsFile, '{ "configurationService.remote.machineSetting": "remoteValue" }');
 		});
-		fs.writeFileSync(remoteSettingsFile, '{ "configurationService.remote.machineSetting": "remoteValue" }');
-		return promise;
 	});
 
 	test('machine settings in local user settings does not override defaults', async () => {
