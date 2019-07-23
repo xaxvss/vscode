@@ -103,7 +103,8 @@ Registry.as<IEditorRegistry>(EditorExtensions.Editors).registerEditor(
 	new EditorDescriptor(
 		TextFileEditor,
 		TextFileEditor.ID,
-		nls.localize('textFileEditor', "Text File Editor")
+		nls.localize('textFileEditor', "Text File Editor"),
+		true /* isPreferedEditorForAllResources */
 	),
 	[
 		new SyncDescriptor<EditorInput>(FileEditorInput)
