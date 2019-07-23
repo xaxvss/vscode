@@ -1586,10 +1586,11 @@ suite('WorkspaceConfigurationService - Remote Folder', () => {
 	});
 
 	test('update remote settings', async () => {
+		fs.writeFileSync(remoteSettingsFile, '{ "configurationService.remote.machineSetting": "remoteValue" }');
 		registerRemoteFileSystemProvider();
 		resolveRemoteEnvironment();
 		await initialize();
-		assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'isSet');
+		assert.equal(testObject.getValue('configurationService.remote.machineSetting'), 'remoteValue');
 		const promise = new Promise((c, e) => {
 			const disposable = testObject.onDidChangeConfiguration(event => {
 				try {
