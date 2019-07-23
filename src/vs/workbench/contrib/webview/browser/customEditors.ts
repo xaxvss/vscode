@@ -17,7 +17,7 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IWindowService } from 'vs/platform/windows/common/windows';
 import { EditorDescriptor, Extensions as EditorExtensions, IEditorRegistry } from 'vs/workbench/browser/editor';
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
-import { EditorOptions } from 'vs/workbench/common/editor';
+import { EditorOptions, EditorInput } from 'vs/workbench/common/editor';
 import { FileEditorInput } from 'vs/workbench/contrib/files/common/editors/fileEditorInput';
 import { WebviewEditor } from 'vs/workbench/contrib/webview/browser/webviewEditor';
 import { WebviewEditorInput } from 'vs/workbench/contrib/webview/browser/webviewEditorInput';
@@ -79,14 +79,18 @@ function createCustomWebviewEditorClass(viewType: string) {
 		}
 
 		async setInput(
-			input: WebviewEditorInput,
+			input: EditorInput,
 			options: EditorOptions,
 			token: CancellationToken
 		): Promise<void> {
+			if (!(input instanceof FileEditorInput)) {
+				super.setInput(input, options, token);
+				return;
+			}
 			const id = generateUuid();
 			const webview = this._webviewService.createWebviewEditorOverlay(id, {}, {});
-			const webviewInput = new WebviewEditorInput(id, viewType, input.getName(), undefined, new UnownedDisposable(webview));
-			await this._webviewEditorService.resolveWebviewEditor(viewType, input.getResource(), webviewInput);
+			const webviewInput = new WebviewEditorInput(id, viewType, input.getName()!, undefined, new UnownedDisposable(webview));
+			await this._webviewEditorService.resolveWebviewEditor(viewType, input.getResource()!, webviewInput);
 			return super.setInput(webviewInput, options, token);
 		}
 	}

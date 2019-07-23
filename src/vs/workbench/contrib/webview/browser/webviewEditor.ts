@@ -13,7 +13,7 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IWindowService } from 'vs/platform/windows/common/windows';
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
-import { EditorOptions } from 'vs/workbench/common/editor';
+import { EditorOptions, EditorInput } from 'vs/workbench/common/editor';
 import { WebviewEditorInput } from 'vs/workbench/contrib/webview/browser/webviewEditorInput';
 import { KEYBINDING_CONTEXT_WEBVIEW_FIND_WIDGET_VISIBLE, Webview, WebviewEditorOverlay } from 'vs/workbench/contrib/webview/common/webview';
 import { IEditorGroup } from 'vs/workbench/services/editor/common/editorGroupsService';
@@ -131,7 +131,7 @@ export class WebviewEditor extends BaseEditor {
 		super.clearInput();
 	}
 
-	public async setInput(input: WebviewEditorInput, options: EditorOptions, token: CancellationToken): Promise<void> {
+	public async setInput(input: EditorInput, options: EditorOptions, token: CancellationToken): Promise<void> {
 		if (this.input && this.input instanceof WebviewEditorInput) {
 			this.input.webview.release(this);
 		}
@@ -142,11 +142,13 @@ export class WebviewEditor extends BaseEditor {
 			return;
 		}
 
-		if (this.group) {
-			input.updateGroup(this.group.id);
-		}
+		if (input instanceof WebviewEditorInput) {
+			if (this.group) {
+				input.updateGroup(this.group.id);
+			}
 
-		this.claimWebview(input);
+			this.claimWebview(input);
+		}
 	}
 
 	private claimWebview(input: WebviewEditorInput): void {
