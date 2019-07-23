@@ -63,7 +63,10 @@ class CustomEditorDescriptor extends EditorDescriptor {
 
 function createCustomWebviewEditorClass(viewType: string) {
 	class CustomWebviewEditor extends WebviewEditor {
+
 		public static readonly ID = `webviewEditor.${viewType}`;
+
+		private static readonly webviewInputs = new Map<FileEditorInput, WebviewEditorInput>();
 
 		constructor(
 			@IWebviewService private readonly _webviewService: IWebviewService,
@@ -87,10 +90,21 @@ function createCustomWebviewEditorClass(viewType: string) {
 				super.setInput(input, options, token);
 				return;
 			}
+
+			const existingWebviewInput = CustomWebviewEditor.webviewInputs.get(input);
+			if (existingWebviewInput) {
+				return super.setInput(existingWebviewInput, options, token);
+			}
+
 			const id = generateUuid();
 			const webview = this._webviewService.createWebviewEditorOverlay(id, {}, {});
 			const webviewInput = new WebviewEditorInput(id, viewType, input.getName()!, undefined, new UnownedDisposable(webview));
 			await this._webviewEditorService.resolveWebviewEditor(viewType, input.getResource()!, webviewInput);
+
+			CustomWebviewEditor.webviewInputs.set(input, webviewInput);
+			webviewInput.onDispose(() => {
+				CustomWebviewEditor.webviewInputs.delete(input);
+			});
 			return super.setInput(webviewInput, options, token);
 		}
 	}
