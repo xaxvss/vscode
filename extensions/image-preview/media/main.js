@@ -16,22 +16,17 @@
 		return Math.min(Math.max(value, min), max);
 	}
 
-	/**
-	 * @param {HTMLElement} node
-	 * @param {string} className
-	 */
-	function addClass(node, className) {
-		node.classList.add(className);
-	}
-	/**
-	 * @param {HTMLElement} node
-	 * @param {string} className
-	 */
-	function removeClass(node, className) {
-		node.classList.remove(className);
-	}
+	function getSettings() {
+		const element = document.getElementById('image-preview-settings');
+		if (element) {
+			const data = element.getAttribute('data-settings');
+			if (data) {
+				return JSON.parse(data);
+			}
+		}
 
-	const isMacintosh = true;
+		throw new Error(`Could not load settings`);
+	}
 
 	/**
 	 * Enable image-rendering: pixelated for images scaled by more than this.
@@ -63,6 +58,7 @@
 		20
 	];
 
+	const isMac = getSettings().isMac;
 
 	const vscode = acquireVsCodeApi();
 
@@ -84,8 +80,8 @@
 
 		if (newScale === 'fit') {
 			scale = 'fit';
-			addClass(image, 'scale-to-fit');
-			removeClass(image, 'pixelated');
+			image.classList.add('scale-to-fit');
+			image.classList.remove('pixelated');
 			image.style.minWidth = 'auto';
 			image.style.width = 'auto';
 			vscode.setState(undefined);
@@ -96,16 +92,16 @@
 
 			scale = clamp(newScale, MIN_SCALE, MAX_SCALE);
 			if (scale >= PIXELATION_THRESHOLD) {
-				addClass(image, 'pixelated');
+				image.classList.add('pixelated');
 			} else {
-				removeClass(image, 'pixelated');
+				image.classList.remove('pixelated');
 			}
 
 			const { scrollTop, scrollLeft } = image.parentElement;
 			const dx = (scrollLeft + image.parentElement.clientWidth / 2) / image.parentElement.scrollWidth;
 			const dy = (scrollTop + image.parentElement.clientHeight / 2) / image.parentElement.scrollHeight;
 
-			removeClass(image, 'scale-to-fit');
+			image.classList.remove('scale-to-fit');
 			image.style.minWidth = `${(image.naturalWidth * scale)}px`;
 			image.style.width = `${(image.naturalWidth * scale)}px`;
 
@@ -123,8 +119,10 @@
 			// InlineImageView.imageStateCache.set(cacheKey, { scale: scale, offsetX: newScrollLeft, offsetY: newScrollTop });
 		}
 
-		// zoomStatusbarItem.updateStatusbar(scale);
-		// scrollbar.scanDomNode();
+		vscode.postMessage({
+			type: 'zoom',
+			value: scale
+		});
 	}
 
 	function firstZoom() {
@@ -143,9 +141,9 @@
 		ctrlPressed = e.ctrlKey;
 		altPressed = e.altKey;
 
-		if (isMacintosh ? altPressed : ctrlPressed) {
-			removeClass(container, 'zoom-in');
-			addClass(container, 'zoom-out');
+		if (isMac ? altPressed : ctrlPressed) {
+			container.classList.remove('zoom-in');
+			container.classList.add('zoom-out');
 		}
 	});
 
@@ -157,9 +155,9 @@
 		ctrlPressed = e.ctrlKey;
 		altPressed = e.altKey;
 
-		if (!(isMacintosh ? altPressed : ctrlPressed)) {
-			removeClass(container, 'zoom-out');
-			addClass(container, 'zoom-in');
+		if (!(isMac ? altPressed : ctrlPressed)) {
+			container.classList.remove('zoom-out');
+			container.classList.add('zoom-in');
 		}
 	});
 
@@ -177,7 +175,7 @@
 			firstZoom();
 		}
 
-		if (!(isMacintosh ? altPressed : ctrlPressed)) { // zoom in
+		if (!(isMac ? altPressed : ctrlPressed)) { // zoom in
 			let i = 0;
 			for (; i < zoomLevels.length; ++i) {
 				if (zoomLevels[i] > scale) {
@@ -201,7 +199,7 @@
 			return;
 		}
 
-		const isScrollWheelKeyPressed = isMacintosh ? altPressed : ctrlPressed;
+		const isScrollWheelKeyPressed = isMac ? altPressed : ctrlPressed;
 		if (!isScrollWheelKeyPressed && !e.ctrlKey) { // pinching is reported as scroll wheel + ctrl
 			return;
 		}
@@ -229,23 +227,21 @@
 		}
 	});
 
-	addClass(container, 'image');
-	addClass(container, 'zoom-in');
-
-
+	container.classList.add('image');
+	container.classList.add('zoom-in');
 
 	image.classList.add('scale-to-fit');
 	image.style.visibility = 'hidden';
 
-	image.addEventListener('load', e => {
+	image.addEventListener('load', () => {
 		if (!image) {
 			return;
 		}
-		// if (typeof descriptor.size === 'number') {
-		// 	// delegate.metadataClb(nls.localize('imgMeta', '{0}x{1} {2}', image.naturalWidth, image.naturalHeight, BinarySize.formatSize(descriptor.size)));
-		// } else {
-		// 	// delegate.metadataClb(nls.localize('imgMetaNoSize', '{0}x{1}', image.naturalWidth, image.naturalHeight));
-		// }
+
+		vscode.postMessage({
+			type: 'size',
+			value: `${image.naturalWidth}x${image.naturalHeight}`,
+		});
 
 		image.style.visibility = 'visible';
 		updateScale(scale);

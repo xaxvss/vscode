@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-html, body, .container {
+html, body {
 	height: 100%;
 	max-height: 100%;
 }
