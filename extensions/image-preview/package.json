@@ -31,18 +31,13 @@
     ]
   },
   "scripts": {
-    "compile": "gulp compile-extension:image-preview && npm run build-preview",
+    "compile": "gulp compile-extension:image-preview",
     "watch": "npm run build-preview && gulp watch-extension:image-preview",
-    "vscode:prepublish": "npm run build-ext && npm run build-preview",
-    "build-ext": "node ../../node_modules/gulp/bin/gulp.js --gulpfile ../../build/gulpfile.extensions.js compile-extension:image-preview ./tsconfig.json",
-    "build-preview": "webpack --mode development"
+    "vscode:prepublish": "npm run build-ext",
+    "build-ext": "node ../../node_modules/gulp/bin/gulp.js --gulpfile ../../build/gulpfile.extensions.js compile-extension:image-preview ./tsconfig.json"
   },
   "dependencies": {
     "vscode-extension-telemetry": "0.1.1",
     "vscode-nls": "^4.0.0"
-  },
-  "devDependencies": {
-    "webpack": "^4.1.0",
-    "webpack-cli": "^2.0.10"
   }
 }
