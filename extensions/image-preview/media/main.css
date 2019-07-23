@@ -3,6 +3,11 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+html, body, .container {
+	height: 100%;
+	max-height: 100%;
+}
+
 body {
 	background: hotpink;
 }
@@ -14,6 +19,7 @@ body {
 .container {
 	padding: 5px 0 0 10px;
 	box-sizing: border-box;
+	user-select: none;
 }
 
 .container.image {

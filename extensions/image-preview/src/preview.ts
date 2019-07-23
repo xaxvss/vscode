@@ -17,9 +17,9 @@ export class Preview {
 		const resourceRoot = resource.with({
 			path: resource.path.replace(/\/[^\/]+?\.\w+$/, '/'),
 		});
-
 		webviewEditor.webview.options = {
 			enableScripts: true,
+
 			localResourceRoots: [
 				resourceRoot,
 				extensionRoot,
@@ -37,9 +37,9 @@ export class Preview {
 </head>
 <body>
 	<div class="container image scale-to-fit">
-		<img src="${escapeAttribute(webviewEditor.webview.toWebviewResource(resource))}"/>
+		<img src="${escapeAttribute(webviewEditor.webview.toWebviewResource(resource))}">
 	</div>
-		<script src="${escapeAttribute(this.extensionResource('/media/main.js'))}"></script>
+	<script src="${escapeAttribute(this.extensionResource('/media/main.js'))}"></script>
 </body>
 </html>`;
 	}
