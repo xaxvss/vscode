@@ -50,7 +50,7 @@ export class MainThreadWebviews extends Disposable implements MainThreadWebviews
 
 	constructor(
 		context: IExtHostContext,
-		@IExtensionService private readonly _extensionService: IExtensionService,
+		@IExtensionService extensionService: IExtensionService,
 		@IEditorGroupsService private readonly _editorGroupService: IEditorGroupsService,
 		@IEditorService private readonly _editorService: IEditorService,
 		@IWebviewEditorService private readonly _webviewEditorService: IWebviewEditorService,
@@ -64,21 +64,21 @@ export class MainThreadWebviews extends Disposable implements MainThreadWebviews
 		this._register(_editorService.onDidActiveEditorChange(this.onActiveEditorChanged, this));
 		this._register(_editorService.onDidVisibleEditorsChange(this.onVisibleEditorsChanged, this));
 
-		// This reviver's only job is to activate webview extensions
+		// This reviver's only job is to activate webview panel extensions
 		// This should trigger the real reviver to be registered from the extension host side.
-		this._register(_webviewEditorService.registerReviver({
-			canRevive: (webview: WebviewEditorInput) => {
-				if (!webview.webview.state) {
+		this._register(_webviewEditorService.registerResolver({
+			canResolve: (webview: WebviewEditorInput) => {
+				if (!webview.webview.state && !webview.editorResource) {
 					return false;
 				}
 
 				const viewType = this.fromInternalWebviewViewType(webview.viewType);
 				if (typeof viewType === 'string') {
-					_extensionService.activateByEvent(`onWebviewPanel:${viewType}`);
+					extensionService.activateByEvent(`onWebviewPanel:${viewType}`);
 				}
 				return false;
 			},
-			reviveWebview: () => { throw new Error('not implemented'); }
+			resolveWebview: () => { throw new Error('not implemented'); }
 		}));
 	}
 
@@ -161,11 +161,11 @@ export class MainThreadWebviews extends Disposable implements MainThreadWebviews
 			throw new Error(`Reviver for ${viewType} already registered`);
 		}
 
-		this._revivers.set(viewType, this._webviewEditorService.registerReviver({
-			canRevive: (webviewEditorInput) => {
+		this._revivers.set(viewType, this._webviewEditorService.registerResolver({
+			canResolve: (webviewEditorInput) => {
 				return !!webviewEditorInput.webview.state && webviewEditorInput.viewType === this.getInternalWebviewViewType(viewType);
 			},
-			reviveWebview: async (webviewEditorInput): Promise<void> => {
+			resolveWebview: async (webviewEditorInput): Promise<void> => {
 				const viewType = this.fromInternalWebviewViewType(webviewEditorInput.viewType);
 				if (!viewType) {
 					webviewEditorInput.webview.html = MainThreadWebviews.getDeserializationFailedContents(webviewEditorInput.viewType);
@@ -219,17 +219,18 @@ export class MainThreadWebviews extends Disposable implements MainThreadWebviews
 			throw new Error(`Provider for ${viewType} already registered`);
 		}
 
-		this._editorProviders.set(viewType, this._webviewEditorService.registerEditorProvider(viewType, {
-			resolveWebviewEditor: async (resource: URI, webview: WebviewEditorInput) => {
-				await this._extensionService.activateByEvent(`onWebviewEditor:${viewType}`);
-
+		this._editorProviders.set(viewType, this._webviewEditorService.registerResolver({
+			canResolve: (webviewEditorInput) => {
+				return !!webviewEditorInput.editorResource && webviewEditorInput.viewType === viewType;
+			},
+			resolveWebview: async (webview: WebviewEditorInput) => {
 				const handle = `resolved-${MainThreadWebviews.revivalPool++}`;
 				this._webviewEditorInputs.set(handle, webview);
 				this.hookupWebviewEventDelegate(handle, webview);
 
 				try {
 					await this._proxy.$resolveWebviewEditor(
-						resource,
+						webview.editorResource,
 						handle,
 						viewType,
 						webview.getTitle(),

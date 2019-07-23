@@ -70,6 +70,7 @@ export class WebviewEditorInput extends EditorInput {
 			readonly id: ExtensionIdentifier;
 		},
 		webview: Unowned<WebviewEditorOverlay>,
+		public readonly editorResource: URI,
 	) {
 		super();
 
@@ -154,8 +155,9 @@ export class RevivedWebviewEditorInput extends WebviewEditorInput {
 		},
 		private readonly reviver: (input: WebviewEditorInput) => Promise<void>,
 		webview: Unowned<WebviewEditorOverlay>,
+		public readonly editorResource: URI,
 	) {
-		super(id, viewType, name, extension, webview);
+		super(id, viewType, name, extension, webview, editorResource);
 	}
 
 	public async resolve(): Promise<IEditorModel> {

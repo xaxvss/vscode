@@ -16,7 +16,6 @@
     "Other"
   ],
   "activationEvents": [
-    "*",
     "onWebviewEditor:imagePreview.previewEditor"
   ],
   "contributes": {

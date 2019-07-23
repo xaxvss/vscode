@@ -58,40 +58,26 @@ export interface IWebviewEditorService {
 		preserveFocus: boolean
 	): void;
 
-	registerReviver(
-		reviver: WebviewReviver
+	registerResolver(
+		reviver: WebviewResolve
 	): IDisposable;
 
 	shouldPersist(
 		input: WebviewEditorInput
 	): boolean;
 
-	registerEditorProvider(
-		viewType: string,
-		provider: WebviewEditorProvider,
-	): IDisposable;
-
-	resolveWebviewEditor(
-		viewType: string,
-		resource: URI,
+	resolveWebview(
 		webview: WebviewEditorInput,
 	): Promise<void>;
 }
 
-export interface WebviewReviver {
-	canRevive(
-		webview: WebviewEditorInput
+export interface WebviewResolve {
+	canResolve(
+		webview: WebviewEditorInput,
 	): boolean;
 
-	reviveWebview(
-		webview: WebviewEditorInput
-	): Promise<void>;
-}
-
-export interface WebviewEditorProvider {
-	resolveWebviewEditor(
-		resource: URI,
-		webview: WebviewEditorInput
+	resolveWebview(
+		webview: WebviewEditorInput,
 	): Promise<void>;
 }
 
@@ -111,11 +97,11 @@ export function areWebviewInputOptionsEqual(a: WebviewInputOptions, b: WebviewIn
 		&& (a.portMappings === b.portMappings || (Array.isArray(a.portMappings) && Array.isArray(b.portMappings) && equals(a.portMappings, b.portMappings, (a, b) => a.extensionHostPort === b.extensionHostPort && a.webviewPort === b.webviewPort)));
 }
 
-function canRevive(reviver: WebviewReviver, webview: WebviewEditorInput): boolean {
+function canRevive(reviver: WebviewResolve, webview: WebviewEditorInput): boolean {
 	if (webview.isDisposed()) {
 		return false;
 	}
-	return reviver.canRevive(webview);
+	return reviver.canResolve(webview);
 }
 
 class RevivalPool {
@@ -125,12 +111,12 @@ class RevivalPool {
 		this._awaitingRevival.push({ input, resolve });
 	}
 
-	public reviveFor(reviver: WebviewReviver) {
+	public reviveFor(reviver: WebviewResolve) {
 		const toRevive = this._awaitingRevival.filter(({ input }) => canRevive(reviver, input));
 		this._awaitingRevival = this._awaitingRevival.filter(({ input }) => !canRevive(reviver, input));
 
 		for (const { input, resolve } of toRevive) {
-			reviver.reviveWebview(input).then(resolve);
+			reviver.resolveWebview(input).then(resolve);
 		}
 	}
 }
@@ -138,10 +124,8 @@ class RevivalPool {
 export class WebviewEditorService implements IWebviewEditorService {
 	_serviceBrand: any;
 
-	private readonly _revivers = new Set<WebviewReviver>();
+	private readonly _revivers = new Set<WebviewResolve>();
 	private readonly _revivalPool = new RevivalPool();
-
-	private readonly _editorProviders = new Map<string, WebviewEditorProvider>();
 
 	constructor(
 		@IEditorService private readonly _editorService: IEditorService,
@@ -164,7 +148,7 @@ export class WebviewEditorService implements IWebviewEditorService {
 	): WebviewEditorInput {
 		const webview = this.createWebiew(id, extension, options);
 
-		const webviewInput = this._instantiationService.createInstance(WebviewEditorInput, id, viewType, title, extension, new UnownedDisposable(webview));
+		const webviewInput = this._instantiationService.createInstance(WebviewEditorInput, id, viewType, title, extension, new UnownedDisposable(webview), undefined);
 		this._editorService.openEditor(webviewInput, { pinned: true, preserveFocus: showOptions.preserveFocus }, showOptions.group);
 		return webviewInput;
 	}
@@ -211,7 +195,7 @@ export class WebviewEditorService implements IWebviewEditorService {
 			const promise = new Promise<void>(r => { resolve = r; });
 			this._revivalPool.add(webview, resolve!);
 			return promise;
-		}, new UnownedDisposable(webview));
+		}, new UnownedDisposable(webview), null!/*TODO*/);
 
 		webviewInput.iconPath = iconPath;
 
@@ -221,8 +205,8 @@ export class WebviewEditorService implements IWebviewEditorService {
 		return webviewInput;
 	}
 
-	public registerReviver(
-		reviver: WebviewReviver
+	public registerResolver(
+		reviver: WebviewResolve
 	): IDisposable {
 		this._revivers.add(reviver);
 		this._revivalPool.reviveFor(reviver);
@@ -254,34 +238,20 @@ export class WebviewEditorService implements IWebviewEditorService {
 	): Promise<boolean> {
 		for (const reviver of values(this._revivers)) {
 			if (canRevive(reviver, webview)) {
-				await reviver.reviveWebview(webview);
+				await reviver.resolveWebview(webview);
 				return true;
 			}
 		}
 		return false;
 	}
 
-	public registerEditorProvider(
-		viewType: string,
-		provider: WebviewEditorProvider,
-	): IDisposable {
-		this._editorProviders.set(viewType, provider);
-
-		return toDisposable(() => {
-			this._editorProviders.delete(viewType);
-		});
-	}
-
-	public resolveWebviewEditor(
-		viewType: string,
-		resource: URI,
+	public async resolveWebview(
 		webview: WebviewEditorInput,
 	): Promise<void> {
-		const provider = this._editorProviders.get(viewType);
-		if (!provider) {
-			throw new Error('Unknown webview viewType');
+		const didRevive = await this.tryRevive(webview);
+		if (!didRevive) {
+			this._revivalPool.add(webview, () => { });
 		}
-		return provider.resolveWebviewEditor(resource, webview);
 	}
 
 	private createWebiew(id: string, extension: { location: URI; id: ExtensionIdentifier; } | undefined, options: WebviewInputOptions) {

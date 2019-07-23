@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import { CancellationToken } from 'vs/base/common/cancellation';
 import { UnownedDisposable } from 'vs/base/common/lifecycle';
 import { endsWith } from 'vs/base/common/strings';
 import { URI } from 'vs/base/common/uri';
@@ -17,14 +18,14 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IWindowService } from 'vs/platform/windows/common/windows';
 import { EditorDescriptor, Extensions as EditorExtensions, IEditorRegistry } from 'vs/workbench/browser/editor';
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
-import { EditorOptions, EditorInput } from 'vs/workbench/common/editor';
+import { EditorInput, EditorOptions } from 'vs/workbench/common/editor';
 import { FileEditorInput } from 'vs/workbench/contrib/files/common/editors/fileEditorInput';
 import { WebviewEditor } from 'vs/workbench/contrib/webview/browser/webviewEditor';
 import { WebviewEditorInput } from 'vs/workbench/contrib/webview/browser/webviewEditorInput';
 import { IWebviewEditorService } from 'vs/workbench/contrib/webview/browser/webviewEditorService';
 import { contributionPoint, IWebviewService } from 'vs/workbench/contrib/webview/common/webview';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
-import { CancellationToken } from 'vs/base/common/cancellation';
+import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
 
 contributionPoint.setHandler(extensions => {
 	for (const extension of extensions) {
@@ -71,6 +72,7 @@ function createCustomWebviewEditorClass(viewType: string) {
 		constructor(
 			@IWebviewService private readonly _webviewService: IWebviewService,
 			@IWebviewEditorService private readonly _webviewEditorService: IWebviewEditorService,
+			@IExtensionService private readonly _extensionService: IExtensionService,
 			@ITelemetryService telemetryService: ITelemetryService,
 			@IThemeService themeService: IThemeService,
 			@IContextKeyService contextKeyService: IContextKeyService,
@@ -96,10 +98,12 @@ function createCustomWebviewEditorClass(viewType: string) {
 				return super.setInput(existingWebviewInput, options, token);
 			}
 
+			this._extensionService.activateByEvent(`onWebviewEditor:${viewType}`);
+
 			const id = generateUuid();
 			const webview = this._webviewService.createWebviewEditorOverlay(id, {}, {});
-			const webviewInput = new WebviewEditorInput(id, viewType, input.getName()!, undefined, new UnownedDisposable(webview));
-			await this._webviewEditorService.resolveWebviewEditor(viewType, input.getResource()!, webviewInput);
+			const webviewInput = new WebviewEditorInput(id, viewType, input.getName()!, undefined, new UnownedDisposable(webview), input.getResource());
+			await this._webviewEditorService.resolveWebview(webviewInput);
 
 			CustomWebviewEditor.webviewInputs.set(input, webviewInput);
 			webviewInput.onDispose(() => {
