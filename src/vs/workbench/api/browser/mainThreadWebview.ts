@@ -232,14 +232,14 @@ export class MainThreadWebviews extends Disposable implements MainThreadWebviews
 						resource,
 						handle,
 						viewType,
-						''/*webviewEditorInput.getTitle()*/,
-						{} /*state*/,
-						editorGroupToViewColumn(this._editorGroupService, /*webviewEditorInput.group ||*/ 0),
-						/*webviewEditorInput.webview.options*/{}
+						webview.getTitle(),
+						webview.webview.state,
+						editorGroupToViewColumn(this._editorGroupService, webview.group || 0),
+						webview.webview.options
 					);
 				} catch (error) {
 					onUnexpectedError(error);
-					// webviewEditorInput.webview.html = MainThreadWebviews.getDeserializationFailedContents(viewType);
+					webview.webview.html = MainThreadWebviews.getDeserializationFailedContents(viewType);
 				}
 			}
 		}));
