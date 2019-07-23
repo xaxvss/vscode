@@ -103,10 +103,6 @@ class EditorRegistry implements IEditorRegistry {
 			const matchingDescriptors: EditorDescriptor[] = [];
 
 			for (const editor of this.editors) {
-				if (!editor.isPreferredEditorForResource(input.getResource())) {
-					continue;
-				}
-
 				const inputDescriptors = this.mapEditorToInputs.get(editor) || [];
 				for (const inputDescriptor of inputDescriptors) {
 					const inputClass = inputDescriptor.ctor;
