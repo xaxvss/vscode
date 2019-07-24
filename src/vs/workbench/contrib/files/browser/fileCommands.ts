@@ -46,8 +46,7 @@ import { UNTITLED_WORKSPACE_NAME } from 'vs/platform/workspaces/common/workspace
 import { withUndefinedAsNull } from 'vs/base/common/types';
 import { FileEditorInput } from 'vs/workbench/contrib/files/common/editors/fileEditorInput';
 import { IQuickInputService, IQuickPickItem } from 'vs/platform/quickinput/common/quickInput';
-import { Registry } from 'vs/platform/registry/common/platform';
-import { IEditorRegistry, Extensions as EditorExtensions } from 'vs/workbench/browser/editor';
+import { ICustomEditorService } from 'vs/workbench/contrib/webview/common/customEditor';
 
 // Commands
 
@@ -419,6 +418,9 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 	when: EditorContextKeys.focus.toNegated(),
 	handler: async (accessor: ServicesAccessor, resource: URI | object) => {
 		const editorService = accessor.get(IEditorService);
+		const customEditorService = accessor.get(ICustomEditorService);
+		const quickInputService = accessor.get(IQuickInputService);
+
 		const resources = getMultiSelectedResources(resource, accessor.get(IListService), editorService);
 		const targetResource = resources[0];
 		if (!targetResource) {
@@ -431,16 +433,26 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 			return;
 		}
 
-		const preferredEditors = Registry.as<IEditorRegistry>(EditorExtensions.Editors).getPreferredEditorsForResource(targetResource);
-		const pick = await accessor.get(IQuickInputService).pick(
-			preferredEditors.map((editorDescriptor): IQuickPickItem => ({
-				label: editorDescriptor.getName(),
-				id: editorDescriptor.getId()
-			})),
+		const preferredEditors = await customEditorService.getCustomEditorsForResource(targetResource);
+		const pick = await quickInputService.pick(
+			[
+				{
+					label: 'Text',
+					id: 'text',
+				},
+				...preferredEditors.map((editorDescriptor): IQuickPickItem => ({
+					label: editorDescriptor.displayName,
+					id: editorDescriptor.id
+				}))
+			],
 			{});
 
 		if (pick) {
-			bigInput.setPreferredCustomEditor(pick.id!);
+			bigInput.setPreferredEditorId('CustomWebviewEditor');
+			customEditorService.setCustomEditorForResource(bigInput, {
+				id: pick.id!,
+				displayName: pick.label
+			});
 			editorService.openEditor(bigInput);
 		}
 	}

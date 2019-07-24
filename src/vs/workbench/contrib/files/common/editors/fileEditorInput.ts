@@ -31,7 +31,8 @@ const enum ForceOpenAs {
 export class FileEditorInput extends EditorInput implements IFileEditorInput {
 	private preferredEncoding: string;
 	private preferredMode: string;
-	private preferredCustomEditor?: string;
+	private preferredEditorId?: string;
+	private editorSubtype?: string;
 
 	private forceOpenAs: ForceOpenAs = ForceOpenAs.None;
 
@@ -116,12 +117,20 @@ export class FileEditorInput extends EditorInput implements IFileEditorInput {
 		this.forceOpenAs = ForceOpenAs.Text; // encoding is a good hint to open the file as text
 	}
 
-	setPreferredCustomEditor(editorId: string): void {
-		this.preferredCustomEditor = editorId;
+	setPreferredEditorId(editorId: string): void {
+		this.preferredEditorId = editorId;
 	}
 
-	getPreferredCustomEditor(): string | undefined {
-		return this.preferredCustomEditor;
+	getPreferredEditorId(): string | undefined {
+		return this.preferredEditorId;
+	}
+
+	setEditorSubtype(subtype: string): void {
+		this.editorSubtype = subtype;
+	}
+
+	getEditorSubtype(): string | undefined {
+		return this.editorSubtype;
 	}
 
 	getPreferredMode(): string | undefined {
@@ -267,10 +276,10 @@ export class FileEditorInput extends EditorInput implements IFileEditorInput {
 		return this.textFileService.revert(this.resource, options);
 	}
 
-	getPreferredEditorId(candidates: string[]): string {
-		if (this.preferredCustomEditor) {
-			if (candidates.indexOf(this.preferredCustomEditor) >= 0) {
-				return this.preferredCustomEditor;
+	selectPreferredEditor(candidates: string[]): string {
+		if (this.preferredEditorId) {
+			if (candidates.indexOf(this.preferredEditorId) >= 0) {
+				return this.preferredEditorId;
 			}
 		}
 		return this.forceOpenAs === ForceOpenAs.Binary ? BINARY_FILE_EDITOR_ID : TEXT_FILE_EDITOR_ID;

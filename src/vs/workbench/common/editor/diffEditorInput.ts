@@ -50,7 +50,7 @@ export class DiffEditorInput extends SideBySideEditorInput {
 		return this.cachedModel;
 	}
 
-	getPreferredEditorId(candidates: string[]): string {
+	selectPreferredEditor(candidates: string[]): string {
 		return this.forceOpenAsBinary ? BINARY_DIFF_EDITOR_ID : TEXT_DIFF_EDITOR_ID;
 	}
 

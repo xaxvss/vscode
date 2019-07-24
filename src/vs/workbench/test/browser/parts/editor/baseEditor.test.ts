@@ -60,7 +60,7 @@ class MyInputFactory implements IEditorInputFactory {
 }
 
 class MyInput extends EditorInput {
-	getPreferredEditorId(ids: string[]) {
+	selectPreferredEditor(ids: string[]) {
 		return ids[1];
 	}
 

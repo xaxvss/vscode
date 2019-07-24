@@ -104,7 +104,6 @@ Registry.as<IEditorRegistry>(EditorExtensions.Editors).registerEditor(
 		TextFileEditor,
 		TextFileEditor.ID,
 		nls.localize('textFileEditor', "Text File Editor"),
-		true /* isPreferedEditorForAllResources */
 	),
 	[
 		new SyncDescriptor<EditorInput>(FileEditorInput)
@@ -140,6 +139,7 @@ interface ISerializedFileInput {
 	encoding?: string;
 	modeId?: string;
 	preferredEditorId?: string;
+	editorSubtype?: string;
 }
 
 // Register Editor Input Factory
@@ -155,7 +155,8 @@ class FileEditorInputFactory implements IEditorInputFactory {
 			resourceJSON: resource.toJSON(),
 			encoding: fileEditorInput.getEncoding(),
 			modeId: fileEditorInput.getPreferredMode(), // only using the preferred user associated mode here if available to not store redundant data
-			preferredEditorId: fileEditorInput.getPreferredCustomEditor(),
+			preferredEditorId: fileEditorInput.getPreferredEditorId(),
+			editorSubtype: fileEditorInput.getEditorSubtype(),
 		};
 
 		return JSON.stringify(fileInput);
@@ -168,10 +169,14 @@ class FileEditorInputFactory implements IEditorInputFactory {
 			const encoding = fileInput.encoding;
 			const mode = fileInput.modeId;
 			const preferredEditorId = fileInput.preferredEditorId;
+			const editorSubtype = fileInput.editorSubtype;
 
 			const input = (accessor.get(IEditorService).createInput({ resource, encoding, mode, forceFile: true }) as FileEditorInput);
 			if (preferredEditorId) {
-				input.setPreferredCustomEditor(preferredEditorId);
+				input.setPreferredEditorId(preferredEditorId);
+			}
+			if (editorSubtype) {
+				input.setEditorSubtype(editorSubtype);
 			}
 			return input;
 		});
