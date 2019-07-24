@@ -12,6 +12,11 @@ body {
 	background: hotpink;
 }
 
+body img {
+	max-width: none;
+	max-height: none;
+}
+
 .container:focus {
 	outline: none !important;
 }
@@ -40,7 +45,7 @@ body {
 		linear-gradient(45deg, rgb(230, 230, 230) 25%, transparent 25%, transparent 75%, rgb(230, 230, 230) 75%, rgb(230, 230, 230));
 }
 
-.vscode-dark .container.image img {
+.vscode-dark.container.image img {
 	background-image:
 		linear-gradient(45deg, rgb(20, 20, 20) 25%, transparent 25%, transparent 75%, rgb(20, 20, 20) 75%, rgb(20, 20, 20)),
 		linear-gradient(45deg, rgb(20, 20, 20) 25%, transparent 25%, transparent 75%, rgb(20, 20, 20) 75%, rgb(20, 20, 20));

@@ -70,7 +70,7 @@
 	let altPressed = false;
 
 	// Elements
-	const container =  /** @type {HTMLElement} */(document.querySelector('.container'));
+	const container =  /** @type {HTMLElement} */(document.querySelector('body'));
 	const image = document.querySelector('img');
 
 	function updateScale(newScale) {
@@ -215,15 +215,14 @@
 		updateScale(scale * (1 - delta * SCALE_PINCH_FACTOR));
 	});
 
-	container.addEventListener('scroll', () => {
+	window.addEventListener('scroll', () => {
 		if (!image || !image.parentElement || scale === 'fit') {
 			return;
 		}
 
-		const entry = InlineImageView.imageStateCache.get(cacheKey);
+		const entry = vscode.getState();
 		if (entry) {
-			const { scrollTop, scrollLeft } = image.parentElement;
-			InlineImageView.imageStateCache.set(cacheKey, { scale: entry.scale, offsetX: scrollLeft, offsetY: scrollTop });
+			vscode.setState({ scale: entry.scale, offsetX: window.scrollX, offsetY: window.scrollY });
 		}
 	});
 
@@ -246,11 +245,8 @@
 		image.style.visibility = 'visible';
 		updateScale(scale);
 
-		// if (initialState.scale !== 'fit') {
-		// 	scrollbar.setScrollPosition({
-		// 		scrollLeft: initialState.offsetX,
-		// 		scrollTop: initialState.offsetY,
-		// 	});
-		// }
+		if (initialState.scale !== 'fit') {
+			window.scrollTo(initialState.offsetX, initialState.offsetY);
+		}
 	});
 }());

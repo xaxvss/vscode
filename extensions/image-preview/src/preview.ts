@@ -87,10 +87,8 @@ export class Preview {
 
 	<meta id="image-preview-settings" data-settings="${escapeAttribute(JSON.stringify(settings))}">
 </head>
-<body>
-	<div class="container image scale-to-fit">
-		<img src="${escapeAttribute(webviewEditor.webview.toWebviewResource(resource))}">
-	</div>
+<body class="container image scale-to-fit">
+	<img src="${escapeAttribute(webviewEditor.webview.toWebviewResource(resource))}">
 	<script src="${escapeAttribute(this.extensionResource('/media/main.js'))}"></script>
 </body>
 </html>`;
