@@ -120,6 +120,10 @@ export class FileEditorInput extends EditorInput implements IFileEditorInput {
 		this.preferredCustomEditor = editorId;
 	}
 
+	getPreferredCustomEditor(): string | undefined {
+		return this.preferredCustomEditor;
+	}
+
 	getPreferredMode(): string | undefined {
 		return this.preferredMode;
 	}
