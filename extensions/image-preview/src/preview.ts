@@ -6,12 +6,11 @@
 import * as vscode from 'vscode';
 import { SizeStatusBarEntry } from './sizeStatusBarEntry';
 import { ZoomStatusBarEntry } from './zoomStatusBarEntry';
+import { Disposable } from './dispose';
 
-export class Preview {
+export class Preview extends Disposable {
 
 	public static readonly viewType = 'imagePreview.previewEditor';
-
-	private readonly _disposables: vscode.Disposable[] = [];
 
 	constructor(
 		private readonly extensionRoot: vscode.Uri,
@@ -20,6 +19,7 @@ export class Preview {
 		private readonly sizeStatusBarEntry: SizeStatusBarEntry,
 		private readonly zoomStatusBarEntry: ZoomStatusBarEntry,
 	) {
+		super();
 		const resourceRoot = resource.with({
 			path: resource.path.replace(/\/[^\/]+?\.\w+$/, '/'),
 		});
@@ -34,11 +34,7 @@ export class Preview {
 
 		webviewEditor.webview.html = this.getWebiewContents(webviewEditor, resource);
 
-		webviewEditor.onDidChangeViewState(() => {
-			this.update();
-		}, undefined, this._disposables);
-
-		webviewEditor.webview.onDidReceiveMessage(message => {
+		this._register(webviewEditor.webview.onDidReceiveMessage(message => {
 			switch (message.type) {
 				case 'size':
 					{
@@ -51,14 +47,16 @@ export class Preview {
 						break;
 					}
 			}
-		}, undefined, this._disposables);
-	}
+		}));
 
-	public dispose() {
-		let entry;
-		while ((entry = this._disposables.pop())) {
-			entry.dispose();
-		}
+		this._register(zoomStatusBarEntry.onDidChangeScale(e => {
+			this.webviewEditor.webview.postMessage({ type: 'setScale', scale: e.scale });
+		}));
+
+		this._register(webviewEditor.onDidChangeViewState(() => {
+			this.update();
+		}));
+		this.update();
 	}
 
 	private update() {

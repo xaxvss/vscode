@@ -4,21 +4,19 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
+import { Disposable } from './dispose';
 
-export class SizeStatusBarEntry {
+export class SizeStatusBarEntry extends Disposable {
 	private readonly _entry: vscode.StatusBarItem;
 
 	constructor() {
-		this._entry = vscode.window.createStatusBarItem({
+		super();
+		this._entry = this._register(vscode.window.createStatusBarItem({
 			id: 'imagePreview.size',
 			name: 'Image Size',
 			alignment: vscode.StatusBarAlignment.Right,
 			priority: 101 /* to the left of editor status (100) */,
-		});
-	}
-
-	public dispose() {
-		this._entry.dispose();
+		}));
 	}
 
 	public show() {

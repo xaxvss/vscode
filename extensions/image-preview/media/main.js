@@ -249,4 +249,12 @@
 			window.scrollTo(initialState.offsetX, initialState.offsetY);
 		}
 	});
+
+	window.addEventListener('message', e => {
+		switch (e.data.type) {
+			case 'setScale':
+				updateScale(e.data.scale);
+				break;
+		}
+	});
 }());
