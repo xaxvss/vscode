@@ -465,10 +465,10 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
 });
 
 MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
-	group: 'navigation',
+	group: '3_compare',
 	order: 20,
-	command: revealInOsCommand,
-	when: ResourceContextKey.Scheme.isEqualTo(Schemas.file)
+	command: compareResourceCommand,
+	when: ContextKeyExpr.and(ExplorerFolderContext.toNegated(), ResourceContextKey.HasResource, ResourceSelectedForCompareContext, WorkbenchListDoubleSelection.toNegated())
 });
 
 MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
