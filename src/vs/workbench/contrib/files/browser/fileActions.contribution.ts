@@ -476,9 +476,9 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
 	order: 20,
 	command: {
 		id: OPEN_WITH_COMMAND_ID,
-		title: 'Open With'
+		title: 'Open With...'
 	},
-	when: ResourceContextKey.Scheme.isEqualTo(Schemas.file)
+	when: ContextKeyExpr.and(ExplorerFolderContext.toNegated(), ResourceContextKey.HasResource)
 });
 
 MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
