@@ -449,17 +449,14 @@ export class ModesContentHoverWidget extends ContentHoverWidget {
 							const renderedContents = markdownDisposeables.add(renderer.render(contents));
 
 							const linkPreviewNode = $('div.hover-row.markdown-link-preview');
-							linkPreviewNode.innerHTML = '<a href="https://developer.mozilla.org">MDN</a>';
+							linkPreviewNode.innerHTML = '<p></p>';
 							linkPreviewNode.hidden = true;
 
 							const allLinks = renderedContents.element.querySelectorAll('a');
 							allLinks.forEach(a => {
 								a.onmouseover = () => {
-									linkPreviewNode.innerHTML = `<a href="${a.getAttribute('data-href')}">${a.getAttribute('data-href')}</a>`;
+									linkPreviewNode.innerHTML = `<p>${a.getAttribute('data-href')}</p>`;
 									linkPreviewNode.hidden = false;
-								};
-								a.onmouseleave = () => {
-									linkPreviewNode.hidden = true;
 								};
 							});
 
