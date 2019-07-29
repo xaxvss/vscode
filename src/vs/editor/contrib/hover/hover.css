@@ -94,3 +94,7 @@
 .monaco-editor-hover .hover-row.status-bar .actions .action-container .action .icon {
 	padding-right: 4px;
 }
+
+.monaco-editor-hover-content .markdown-link-preview {
+	padding: 4px 8px;
+}

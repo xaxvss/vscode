@@ -447,8 +447,27 @@ export class ModesContentHoverWidget extends ContentHoverWidget {
 								this.onContentsChange();
 							}));
 							const renderedContents = markdownDisposeables.add(renderer.render(contents));
+
+							const linkPreviewNode = $('div.hover-row.markdown-link-preview');
+							linkPreviewNode.innerHTML = '<a href="https://developer.mozilla.org">MDN</a>';
+							linkPreviewNode.hidden = true;
+
+							const allLinks = renderedContents.element.querySelectorAll('a');
+							allLinks.forEach(a => {
+								a.onmouseover = () => {
+									linkPreviewNode.innerHTML = `<a href="${a.getAttribute('data-href')}">${a.getAttribute('data-href')}</a>`;
+									linkPreviewNode.hidden = false;
+								};
+								a.onmouseleave = () => {
+									linkPreviewNode.hidden = true;
+								};
+							});
+
 							hoverContentsElement.appendChild(renderedContents.element);
 							fragment.appendChild(markdownHoverElement);
+
+							fragment.appendChild(linkPreviewNode);
+
 							isEmptyHoverContent = false;
 						});
 				}
