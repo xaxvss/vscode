@@ -475,7 +475,8 @@ export class ExtHostTextEditor implements vscode.TextEditor {
 			throw illegalArgument('selection');
 		}
 		this._selections = [value];
-		this._trySetSelection();
+		const stack = new Error().stack;
+		this._trySetSelection(stack);
 	}
 
 	get selections(): Selection[] {
@@ -487,7 +488,8 @@ export class ExtHostTextEditor implements vscode.TextEditor {
 			throw illegalArgument('selections');
 		}
 		this._selections = value;
-		this._trySetSelection();
+		const stack = new Error().stack;
+		this._trySetSelection(stack);
 	}
 
 	setDecorations(decorationType: vscode.TextEditorDecorationType, ranges: Range[] | vscode.DecorationOptions[]): void {
@@ -538,9 +540,9 @@ export class ExtHostTextEditor implements vscode.TextEditor {
 		);
 	}
 
-	private _trySetSelection(): Promise<vscode.TextEditor | null | undefined> {
+	private _trySetSelection(reason: string | undefined): Promise<vscode.TextEditor | null | undefined> {
 		const selection = this._selections.map(TypeConverters.Selection.from);
-		return this._runOnProxy(() => this._proxy.$trySetSelections(this._id, selection));
+		return this._runOnProxy(() => this._proxy.$trySetSelections(this._id, selection, reason));
 	}
 
 	_acceptSelections(selections: Selection[]): void {

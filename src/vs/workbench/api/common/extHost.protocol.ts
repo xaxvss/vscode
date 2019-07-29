@@ -231,7 +231,7 @@ export interface MainThreadTextEditorsShape extends IDisposable {
 	$trySetDecorations(id: string, key: string, ranges: editorCommon.IDecorationOptions[]): Promise<void>;
 	$trySetDecorationsFast(id: string, key: string, ranges: number[]): Promise<void>;
 	$tryRevealRange(id: string, range: IRange, revealType: TextEditorRevealType): Promise<void>;
-	$trySetSelections(id: string, selections: ISelection[]): Promise<void>;
+	$trySetSelections(id: string, selections: ISelection[], reason: string | undefined): Promise<void>;
 	$tryApplyEdits(id: string, modelVersionId: number, edits: ISingleEditOperation[], opts: IApplyEditsOptions): Promise<boolean>;
 	$tryApplyWorkspaceEdit(workspaceEditDto: WorkspaceEditDto): Promise<boolean>;
 	$tryInsertSnippet(id: string, template: string, selections: IRange[], opts: IUndoStopOptions): Promise<boolean>;

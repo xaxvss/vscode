@@ -24,6 +24,7 @@ import { ExtHostContext, ExtHostEditorsShape, IApplyEditsOptions, IExtHostContex
 import { EditorViewColumn, editorGroupToViewColumn, viewColumnToEditorGroup } from 'vs/workbench/api/common/shared/editor';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IEditorGroupsService } from 'vs/workbench/services/editor/common/editorGroupsService';
+import { trace } from 'vs/platform/log/common/log';
 
 export class MainThreadTextEditors implements MainThreadTextEditorsShape {
 
@@ -159,9 +160,12 @@ export class MainThreadTextEditors implements MainThreadTextEditorsShape {
 		return Promise.resolve();
 	}
 
-	$trySetSelections(id: string, selections: ISelection[]): Promise<void> {
+	$trySetSelections(id: string, selections: ISelection[], reason: string | undefined): Promise<void> {
 		if (!this._documentsAndEditors.getEditor(id)) {
 			return Promise.reject(disposed(`TextEditor(${id})`));
+		}
+		if (reason) {
+			trace(reason);
 		}
 		this._documentsAndEditors.getEditor(id).setSelections(selections);
 		return Promise.resolve(undefined);
