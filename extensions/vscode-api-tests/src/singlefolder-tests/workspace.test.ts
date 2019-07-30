@@ -806,6 +806,11 @@ suite('workspace-namespace', () => {
 		const result = await vscode.workspace.applyEdit(we);
 		console.log('result', result);
 		console.log('exists', fs.existsSync(docUri.fsPath));
+
+		await deleteFile(docUri);
+		console.log('lets delete it ourselves');
+		console.log('exists', fs.existsSync(docUri.fsPath));
+
 		assert.ok(result);
 
 		we = new vscode.WorkspaceEdit();
