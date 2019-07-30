@@ -798,9 +798,15 @@ suite('workspace-namespace', () => {
 	test('WorkspaceEdit: delete & ignoreIfNotExists', async function () {
 
 		let docUri = await createRandomFile();
+		console.log(docUri.toString());
+		console.log('exists', fs.existsSync(docUri.fsPath));
+
 		let we = new vscode.WorkspaceEdit();
 		we.deleteFile(docUri, { ignoreIfNotExists: false });
-		assert.ok(await vscode.workspace.applyEdit(we));
+		const result = await vscode.workspace.applyEdit(we);
+		console.log('result', result);
+		console.log('exists', fs.existsSync(docUri.fsPath));
+		assert.ok(result);
 
 		we = new vscode.WorkspaceEdit();
 		we.deleteFile(docUri, { ignoreIfNotExists: false });
