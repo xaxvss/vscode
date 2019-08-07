@@ -168,6 +168,7 @@ export class CustomTreeView extends Disposable implements ITreeView {
 	private domNode: HTMLElement;
 	private treeContainer: HTMLElement;
 	private _messageValue: string | IMarkdownString | undefined;
+	private _canSelectMany: boolean = false;
 	private messageElement: HTMLDivElement;
 	private tree: WorkbenchAsyncDataTree<ITreeItem, ITreeItem, FuzzyScore>;
 	private treeLabels: ResourceLabels;
@@ -264,6 +265,14 @@ export class CustomTreeView extends Disposable implements ITreeView {
 	set message(message: string | IMarkdownString | undefined) {
 		this._message = message;
 		this.updateMessage();
+	}
+
+	get canSelectMany(): boolean {
+		return this._canSelectMany;
+	}
+
+	set canSelectMany(canSelectMany: boolean) {
+		this._canSelectMany = canSelectMany;
 	}
 
 	get hasIconForParentNode(): boolean {
@@ -385,12 +394,14 @@ export class CustomTreeView extends Disposable implements ITreeView {
 				collapseByDefault: (e: ITreeItem): boolean => {
 					return e.collapsibleState !== TreeItemCollapsibleState.Expanded;
 				},
-				multipleSelectionSupport: false
-			}));
+				multipleSelectionSupport: this.canSelectMany,
+			}) as WorkbenchAsyncDataTree<ITreeItem, ITreeItem, FuzzyScore>);
 		aligner.tree = this.tree;
+		const actionRunner = new MultipleSelectionActionRunner(() => this.tree.getSelection());
+		renderer.actionRunner = actionRunner;
 
 		this.tree.contextKeyService.createKey<boolean>(this.id, true);
-		this._register(this.tree.onContextMenu(e => this.onContextMenu(treeMenus, e)));
+		this._register(this.tree.onContextMenu(e => this.onContextMenu(treeMenus, e, actionRunner)));
 		this._register(this.tree.onDidChangeSelection(e => this._onDidChangeSelection.fire(e.elements)));
 		this._register(this.tree.onDidChangeCollapseState(e => {
 			if (!e.node.element) {
@@ -419,7 +430,7 @@ export class CustomTreeView extends Disposable implements ITreeView {
 		}));
 	}
 
-	private onContextMenu(treeMenus: TreeMenus, treeEvent: ITreeContextMenuEvent<ITreeItem>): void {
+	private onContextMenu(treeMenus: TreeMenus, treeEvent: ITreeContextMenuEvent<ITreeItem>, actionRunner: MultipleSelectionActionRunner): void {
 		const node: ITreeItem | null = treeEvent.element;
 		if (node === null) {
 			return;
@@ -455,7 +466,7 @@ export class CustomTreeView extends Disposable implements ITreeView {
 
 			getActionsContext: () => (<TreeViewItemHandleArg>{ $treeViewId: this.id, $treeItemHandle: node.handle }),
 
-			actionRunner: new MultipleSelectionActionRunner(() => this.tree.getSelection())
+			actionRunner
 		});
 	}
 
@@ -704,6 +715,8 @@ class TreeRenderer extends Disposable implements ITreeRenderer<ITreeItem, FuzzyS
 	static readonly ITEM_HEIGHT = 22;
 	static readonly TREE_TEMPLATE_ID = 'treeExplorer';
 
+	private _actionRunner: MultipleSelectionActionRunner | undefined;
+
 	constructor(
 		private treeViewId: string,
 		private menus: TreeMenus,
@@ -719,6 +732,10 @@ class TreeRenderer extends Disposable implements ITreeRenderer<ITreeItem, FuzzyS
 
 	get templateId(): string {
 		return TreeRenderer.TREE_TEMPLATE_ID;
+	}
+
+	set actionRunner(actionRunner: MultipleSelectionActionRunner) {
+		this._actionRunner = actionRunner;
 	}
 
 	renderTemplate(container: HTMLElement): ITreeExplorerTemplateData {
@@ -758,8 +775,11 @@ class TreeRenderer extends Disposable implements ITreeRenderer<ITreeItem, FuzzyS
 
 		templateData.icon.style.backgroundImage = iconUrl ? `url('${DOM.asDomUri(iconUrl).toString(true)}')` : '';
 		DOM.toggleClass(templateData.icon, 'custom-view-tree-node-item-icon', !!iconUrl);
-		templateData.actionBar.context = (<TreeViewItemHandleArg>{ $treeViewId: this.treeViewId, $treeItemHandle: node.handle });
+		templateData.actionBar.context = <TreeViewItemHandleArg>{ $treeViewId: this.treeViewId, $treeItemHandle: node.handle };
 		templateData.actionBar.push(this.menus.getResourceActions(node), { icon: true, label: false });
+		if (this._actionRunner) {
+			templateData.actionBar.actionRunner = this._actionRunner;
+		}
 		this.setAlignment(templateData.container, node);
 		templateData.elementDisposable = (this.themeService.onDidFileIconThemeChange(() => this.setAlignment(templateData.container, node)));
 	}
@@ -836,23 +856,13 @@ class Aligner extends Disposable {
 
 class MultipleSelectionActionRunner extends ActionRunner {
 
-	constructor(private getSelectedResources: (() => any[])) {
+	constructor(private getSelectedResources: (() => ITreeItem[])) {
 		super();
 	}
 
-	runAction(action: IAction, context: any): Promise<any> {
-		if (action instanceof MenuItemAction) {
-			const selection = this.getSelectedResources();
-			const filteredSelection = selection.filter(s => s !== context);
-
-			if (selection.length === filteredSelection.length || selection.length === 1) {
-				return action.run(context);
-			}
-
-			return action.run(context, ...filteredSelection);
-		}
-
-		return super.runAction(action, context);
+	runAction(action: IAction, context: TreeViewItemHandleArg): Promise<any> {
+		const selection = this.getSelectedResources();
+		return Promise.all(selection.map(selected => action.run({ $treeViewId: context.$treeViewId, $treeItemHandle: selected.handle })));
 	}
 }
 
