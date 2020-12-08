@@ -8,12 +8,14 @@ import { IWindowsShellHelper, ITerminalChildProcess, IDefaultShellAndArgsRequest
 import { Terminal as XTermTerminal } from 'xterm';
 import { WebLinksAddon as XTermWebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon as XTermSearchAddon } from 'xterm-addon-search';
+import { WebglAddon as XTermWebglAddon } from 'xterm-addon-webgl';
 import { IProcessEnvironment } from 'vs/base/common/platform';
 import { Emitter, Event } from 'vs/base/common/event';
 
 let Terminal: typeof XTermTerminal;
 let WebLinksAddon: typeof XTermWebLinksAddon;
 let SearchAddon: typeof XTermSearchAddon;
+let WebglAddon: typeof XTermWebglAddon;
 
 export class TerminalInstanceService implements ITerminalInstanceService {
 	public _serviceBrand: any;
@@ -43,6 +45,14 @@ export class TerminalInstanceService implements ITerminalInstanceService {
 		}
 		return SearchAddon;
 	}
+
+	public async getXtermWebglConstructor(): Promise<typeof XTermWebglAddon> {
+		if (!WebglAddon) {
+			WebglAddon = (await import('xterm-addon-webgl')).WebglAddon;
+		}
+		return WebglAddon;
+	}
+
 
 	public createWindowsShellHelper(): IWindowsShellHelper {
 		throw new Error('Not implemented');
